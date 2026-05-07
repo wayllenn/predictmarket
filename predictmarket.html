@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#08090e">
+<title>PredictMarket</title>
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#08090e;--surface:#0f1219;--card:#13181f;--border:#1c2433;--accent:#c8f135;--red:#ef4444;--green:#22c55e;--gold:#f59e0b;--text:#f0f4ff;--muted:#4a5568;--sub:#8896a8;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden;}
+/* Web layout — wider screen */
+@media(min-width:900px){
+  body{max-width:900px;}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .feat-card{margin:0 0 14px;}
+  .hdr{padding:16px 24px;}
+  .tabs{padding:0 24px;}
+  .stats-strip{padding:14px 24px;}
+  .sec-hdr{padding:16px 24px 10px;}
+  .cards{padding:0 24px;}
+  .spacer{height:40px;}
+  .bottom-nav{display:none;}
+  /* Web top nav */
+  }
+@media(min-width:900px){}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 40% at 50% -10%,rgba(200,241,53,0.06) 0%,transparent 70%);z-index:0;}
+
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:50;background:rgba(8,9,14,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:12px;}
+.pm-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pm-name{font-size:20px;font-weight:800;color:var(--text);}
+.pm-name span{color:var(--accent);}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.bal-pill{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:6px;}
+.bal-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;}
+.bal-val{font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--accent);}
+.notif-btn{width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;position:relative;}
+.notif-dot{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--red);border-radius:50%;border:2px solid var(--bg);}
+
+/* TABS */
+.tabs{display:flex;padding:0 18px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:63px;z-index:40;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:12px 14px;background:none;border:none;font-family:'Syne';font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.5px;}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* STATS */
+.stats-strip{display:flex;padding:12px 18px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+.stats-strip::-webkit-scrollbar{display:none;}
+.stat{flex-shrink:0;padding:0 18px 0 0;}
+.stat-n{font-family:'JetBrains Mono';font-size:17px;font-weight:700;color:var(--text);}
+.stat-n .ac{color:var(--accent);}
+.stat-l{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-top:2px;}
+.stat-div{width:1px;background:var(--border);margin-right:18px;flex-shrink:0;}
+
+/* online dot */
+.online-dot{display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:4px;animation:onlinePulse 2s ease-in-out infinite;box-shadow:0 0 4px var(--green);}
+@keyframes onlinePulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;}
+.sec-title{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.sec-more{font-size:11px;color:var(--accent);font-weight:700;cursor:pointer;background:none;border:none;}
+
+/* FEATURED YOLO */
+.feat-card{margin:0 18px 14px;background:linear-gradient(135deg,#0f1a0a,#131d10);border:1px solid rgba(200,241,53,0.2);border-radius:18px;overflow:hidden;cursor:pointer;position:relative;}
+.feat-badge{position:absolute;top:14px;left:14px;z-index:2;background:var(--accent);color:#000;font-size:10px;font-weight:800;letter-spacing:1.5px;padding:4px 10px;border-radius:20px;}
+.feat-live{position:absolute;top:14px;right:14px;z-index:2;display:flex;align-items:center;gap:5px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:20px;padding:4px 10px;}
+.live-dot{width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.2s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.feat-live span{font-size:10px;font-weight:800;color:var(--red);letter-spacing:1px;}
+.feat-visual{height:130px;background:#0a1208;position:relative;overflow:hidden;}
+.road{width:100%;height:100%;position:absolute;background:linear-gradient(180deg,#1a1a1a,#0d0d0d);}
+.road-line{position:absolute;top:50%;left:0;right:0;height:3px;background:repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 20px,transparent 20px,transparent 40px);transform:translateY(-50%);opacity:.4;}
+.car{position:absolute;font-size:26px;animation:driveCar linear infinite;}
+.car:nth-child(3){animation-duration:3s;top:52%;}
+.car:nth-child(4){animation-duration:4s;animation-delay:1s;top:22%;}
+.car:nth-child(5){animation-duration:2.5s;animation-delay:.5s;top:68%;}
+@keyframes driveCar{from{left:-60px}to{left:110%}}
+.feat-counter{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;}
+.feat-counter-n{font-family:'JetBrains Mono';font-size:38px;font-weight:700;color:var(--accent);text-shadow:0 0 20px rgba(200,241,53,.5);}
+.feat-counter-l{font-size:10px;color:rgba(200,241,53,.6);font-weight:700;letter-spacing:1px;}
+.feat-body{padding:12px 16px;}
+.feat-q{font-size:14px;font-weight:700;line-height:1.4;margin-bottom:10px;}
+.feat-meta{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.feat-tag{font-size:10px;color:var(--muted);background:var(--surface);border-radius:6px;padding:3px 8px;font-weight:700;}
+.feat-pool{font-size:11px;color:var(--sub);margin-left:auto;}
+.feat-pool strong{color:var(--accent);font-family:'JetBrains Mono';}
+.feat-timer{display:flex;align-items:center;justify-content:space-between;background:rgba(200,241,53,.06);border:1px solid rgba(200,241,53,.12);border-radius:10px;padding:9px 14px;}
+.feat-timer-l{font-size:11px;color:var(--sub);font-weight:700;}
+.feat-timer-v{font-family:'JetBrains Mono';font-size:15px;font-weight:700;color:var(--accent);}
+
+/* MARKET CARDS */
+.cards{display:flex;flex-direction:column;gap:10px;padding:0 18px;}
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:border-color .2s;animation:fadeUp .4s ease both;}
+.mcard:nth-child(2){animation-delay:.05s;}
+.mcard:nth-child(3){animation-delay:.1s;}
+.mcard:nth-child(4){animation-delay:.15s;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.mcard.expanded{border-color:rgba(200,241,53,.3);}
+.mcard-top{padding:14px 16px;}
+.mcard-row1{display:flex;align-items:flex-start;gap:12px;}
+.mcard-emoji{width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.mcard-info{flex:1;}
+.mcard-cat{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+.mcard-q{font-size:14px;font-weight:700;line-height:1.4;color:var(--text);}
+.mcard-stats{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.mcard-pool{font-size:11px;color:var(--sub);}
+.mcard-pool strong{font-family:'JetBrains Mono';color:var(--text);}
+.mcard-ends{font-size:11px;color:var(--muted);}
+.mcard-odds{margin-left:auto;background:rgba(200,241,53,.08);border:1px solid rgba(200,241,53,.2);border-radius:8px;padding:4px 10px;font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--accent);}
+
+/* LIQUIDITY */
+.liq{padding:10px 16px 14px;border-top:1px solid var(--border);}
+.liq-track{height:20px;border-radius:10px;overflow:hidden;margin-bottom:8px;display:flex;gap:2px;}
+.liq-a{border-radius:5px 0 0 5px;transition:width .6s ease;display:flex;align-items:center;padding-left:8px;min-width:36px;}
+.liq-b{border-radius:0 5px 5px 0;flex:1;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;min-width:36px;}
+.liq-pct-inner{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#000;pointer-events:none;}
+.liq-nums{display:flex;justify-content:space-between;margin-bottom:8px;}
+.liq-side{display:flex;flex-direction:column;gap:2px;}
+.liq-side-lbl{font-size:10px;color:var(--muted);font-weight:700;}
+.liq-side-val{font-family:'JetBrains Mono';font-size:13px;font-weight:700;}
+.liq-side-pct{font-size:10px;color:var(--muted);}
+.liq-wait{display:flex;align-items:center;gap:10px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:9px;padding:9px 14px;}
+.liq-wait-ico{font-size:14px;flex-shrink:0;}
+.liq-wait-info{flex:1;}
+.liq-wait-title{font-size:11px;font-weight:700;color:var(--gold);}
+.liq-wait-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.liq-wait-amt{display:flex;align-items:baseline;gap:4px;}
+.liq-wait-val{font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:var(--gold);}
+.liq-wait-ton{font-size:10px;color:var(--muted);font-weight:700;}
+
+/* BET PANEL */
+.bet-panel{border-top:1px solid var(--border);padding:14px 16px;background:rgba(200,241,53,.015);display:none;}
+.mcard.expanded .bet-panel{display:block;}
+.bet-title{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
+.vs-row{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+.vs-opt{flex:1;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s;border:2px solid transparent;}
+.vs-opt.red-opt{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);}
+.vs-opt.gold-opt{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.2);}
+.vs-opt.red-opt.sel{background:rgba(239,68,68,.18);border-color:var(--red);}
+.vs-opt.gold-opt.sel{background:rgba(245,158,11,.18);border-color:var(--gold);}
+.vs-avatar{font-size:28px;margin-bottom:5px;}
+.vs-name{font-size:11px;font-weight:800;}
+.vs-pct{font-family:'JetBrains Mono';font-size:11px;margin-top:3px;}
+.vs-mid{font-family:'JetBrains Mono';font-size:14px;font-weight:700;color:var(--muted);}
+.yn-row{display:flex;gap:8px;margin-bottom:12px;}
+.yn-btn{flex:1;padding:12px 0;border-radius:12px;border:2px solid transparent;cursor:pointer;font-family:'Syne';font-weight:800;font-size:14px;letter-spacing:1px;transition:all .2s;position:relative;}
+.yes-btn{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25);color:var(--green);}
+.yes-btn.sel{background:rgba(34,197,94,.18);border-color:var(--green);}
+.no-btn{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);color:var(--red);}
+.no-btn.sel{background:rgba(239,68,68,.18);border-color:var(--red);}
+.match-badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+
+/* STAKE */
+.stake-wrap{margin-bottom:10px;}
+.stake-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.stake-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;}
+.stake-display{font-family:'JetBrains Mono';font-size:14px;font-weight:700;color:var(--accent);}
+.stake-quick{display:flex;gap:4px;margin-bottom:6px;}
+.stake-btn{flex:1;padding:7px 0;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono';font-size:11px;color:var(--sub);cursor:pointer;transition:all .15s;text-align:center;}
+.stake-btn.sel{background:rgba(200,241,53,.1);border-color:rgba(200,241,53,.3);color:var(--accent);}
+/* Custom input */
+.stake-custom{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;}
+.stake-minus,.stake-plus{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.stake-minus:active,.stake-plus:active{background:rgba(200,241,53,.1);border-color:var(--accent);}
+.stake-input{flex:1;background:none;border:none;outline:none;font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:var(--accent);text-align:center;width:100%;}
+.stake-ton{font-size:11px;color:var(--muted);font-weight:700;flex-shrink:0;}
+.potential{display:flex;justify-content:space-between;align-items:center;background:rgba(200,241,53,.04);border:1px solid rgba(200,241,53,.1);border-radius:8px;padding:7px 12px;margin-bottom:10px;}
+.pot-label{font-size:11px;color:var(--muted);font-weight:700;}
+.pot-val{font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--accent);}
+.confirm-btn{width:100%;padding:12px;border:none;border-radius:12px;font-family:'Syne';font-size:14px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .2s;background:var(--accent);color:#000;box-shadow:0 4px 16px rgba(200,241,53,.2);}
+.confirm-btn:active{transform:scale(.98);}
+
+/* BOTTOM NAV */
+.bottom-nav{display:none;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:4px 0;}
+
+
+.nav-item.on 
+.spacer{height:90px;}
+
+/* YOLO CAMERA - mostra o stream inteiro, sem cortar */
+.yolo-video-wrap{
+  position:relative;
+  width:100%;
+  aspect-ratio:16 / 9;
+  height:auto;
+  min-height:220px;
+  background:#05070b;
+  overflow:hidden;
+  border-radius:16px 16px 0 0;
+  border-bottom:1px solid rgba(200,241,53,.16);
+}
+.yolo-video-wrap::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.04),transparent 45%,rgba(0,0,0,.07));
+}
+.yolo-video-media{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;
+  object-position:center center;
+  background:#000;
+}
+@media(min-width:900px){
+  .yolo-video-wrap{
+    aspect-ratio:16 / 9;
+    min-height:420px;
+  }
+}
+@media(max-width:480px){
+  .yolo-video-wrap{
+    aspect-ratio:16 / 9;
+    min-height:240px;
+  }
+}
+
+
+/* YOLO COUNTING LINE - linha visual da contagem sobre o vídeo */
+.yolo-count-line-layer{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+}
+.yolo-count-line-layer svg{
+  width:100%;
+  height:100%;
+  display:block;
+}
+.yolo-count-line{
+  stroke:#ffd21f;
+  stroke-width:.7;
+  stroke-linecap:round;
+  filter:drop-shadow(0 0 4px rgba(255,210,31,.85));
+}
+.yolo-count-line-shadow{
+  stroke:#000;
+  stroke-width:1.2;
+  stroke-linecap:round;
+  opacity:.55;
+}
+.yolo-count-dot{
+  fill:#ffd21f;
+  stroke:#fff;
+  stroke-width:.28;
+  filter:drop-shadow(0 0 4px rgba(255,210,31,.9));
+}
+.yolo-count-tag{
+  position:absolute;
+  left:12px;
+  bottom:12px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:rgba(5,7,11,.72);
+  border:1px solid rgba(255,210,31,.45);
+  color:#ffd21f;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.4px;
+  backdrop-filter:blur(8px);
+}
+.yolo-count-tag span{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#ffd21f;
+  box-shadow:0 0 8px rgba(255,210,31,.9);
+}
+
+
+/* REAL YOLO DETECTION DOTS - pontinhos vindos da API */
+.yolo-live-counter{
+  position:absolute;
+  top:12px;
+  left:12px;
+  z-index:4;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 10px;
+  border-radius:12px;
+  background:rgba(5,7,11,.72);
+  border:1px solid rgba(200,241,53,.45);
+  color:var(--accent);
+  backdrop-filter:blur(8px);
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  font-weight:800;
+}
+.yolo-live-counter small{
+  color:#fff;
+  opacity:.72;
+  font-size:9px;
+  letter-spacing:.8px;
+}
+@keyframes countPop{
+  0%{transform:translate(-50%,-50%) scale(.65);opacity:.4}
+  45%{transform:translate(-50%,-50%) scale(1.35);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+}
+
+
+@keyframes tickerScroll{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
+</style>
+<!-- HLS.js for processed server HLS stream -->
+</head>
+<body>
+<!-- VIDEO_PATCH_2026_05_03_MOBILE_SMOOTH_NO_LINE_FETCH -->
+
+<!-- Web navigation bar (hidden on mobile) -->
+
+<div class="hdr">
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="pm-icon" style="background:linear-gradient(135deg,var(--accent),#00d4ff)">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 3L17 10L10 17L3 10L10 3Z" stroke="#000" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M10 6.5L13.5 10L10 13.5L6.5 10L10 6.5Z" fill="#000" opacity=".25"/>
+        <circle cx="10" cy="10" r="1.8" fill="#000"/>
+      </svg>
+    </div>
+    <div class="pm-name">Predict<span>Market</span></div>
+  </div>
+  <div class="hdr-right">
+    <!-- Online + Volume -->
+    <div style="display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 10px">
+      <span class="online-dot"></span>
+      <span id="onlineCount" style="font-family:'JetBrains Mono';font-size:11px;font-weight:700;color:var(--text)">141</span>
+      <span style="font-size:10px;color:var(--muted)">online</span>
+      <span style="font-size:10px;color:var(--border)">·</span>
+      <span style="font-family:'JetBrains Mono';font-size:11px;font-weight:700;color:var(--accent)">24.3K TON</span>
+      <span style="font-size:10px;color:var(--muted)">24h</span>
+    </div>
+    <!-- Deposit -->
+    <button onclick="alert('Deposit — coming soon!')" style="display:flex;align-items:center;gap:4px;background:var(--accent);border:none;border-radius:16px;padding:5px 10px;cursor:pointer;box-shadow:0 2px 10px rgba(200,241,53,.25)">
+      <svg width="12" height="12" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="#000" stroke-width="1.8"/><path d="M9 6v6M6 11l3 2 3-2" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-size:10px;font-weight:800;color:#000;letter-spacing:.5px">DEPOSIT</span>
+    </button>
+    <!-- Profile -->
+    <button onclick="alert('Profile — coming soon!')" style="width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
+      <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="6" r="3.5" stroke="var(--muted)" stroke-width="1.5"/><path d="M2 16c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" onclick="setTab(this,'all')">🔥 Trending</button>
+  <button class="tab" onclick="setTab(this,'football')">⚽ Football</button>
+  <button class="tab" onclick="setTab(this,'politics')">🏛 Politics</button>
+  <button class="tab" onclick="setTab(this,'yolo')">🚗 Traffic Flow</button>
+  <button class="tab" onclick="setTab(this,'entertainment')">🎬 Entertainment</button>
+  <button class="tab" onclick="setTab(this,'crypto')">📈 Crypto</button>
+</div>
+
+
+
+<!-- Announcement ticker NEON -->
+<div style="overflow:hidden;position:relative;background:linear-gradient(90deg,rgba(200,241,53,.06),rgba(0,212,255,.04),rgba(200,241,53,.06));border-top:1px solid rgba(200,241,53,.15);border-bottom:1px solid rgba(0,212,255,.15);padding:8px 0">
+  <!-- neon glow edges -->
+  <div style="position:absolute;left:0;top:0;bottom:0;width:40px;background:linear-gradient(90deg,var(--bg),transparent);z-index:2;pointer-events:none"></div>
+  <div style="position:absolute;right:0;top:0;bottom:0;width:40px;background:linear-gradient(270deg,var(--bg),transparent);z-index:2;pointer-events:none"></div>
+  <div style="display:flex;white-space:nowrap;animation:tickerScroll 28s linear infinite">
+    <span style="display:inline-flex;align-items:center;gap:0;font-size:11px;font-weight:700;letter-spacing:.3px">
+      <span class="tk-item" data-key="tk1" style="padding:0 24px;color:#c8f135;text-shadow:0 0 10px rgba(200,241,53,.8),0 0 20px rgba(200,241,53,.4)">🚀 O PRIMEIRO mercado de previsão como Mini App do Telegram — você está entre os primeiros!</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk2" style="padding:0 24px;color:#00d4ff;text-shadow:0 0 10px rgba(0,212,255,.8),0 0 20px rgba(0,212,255,.4)">⚡ Depósito e saque em segundos · Instantâneo · Seguro</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk3" style="padding:0 24px;color:#c8f135;text-shadow:0 0 10px rgba(200,241,53,.8)">🤝 100% Peer-to-Peer · Seu TON vai direto pro vencedor</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk4" style="padding:0 24px;color:#ff3d6b;text-shadow:0 0 10px rgba(255,61,107,.8),0 0 20px rgba(255,61,107,.4)">💎 Previu certo → recebe na hora em TON · 1.9× a cada rodada</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk5" style="padding:0 24px;color:#00d4ff;text-shadow:0 0 10px rgba(0,212,255,.8)">👀 A galera já está prevendo agora — não perde a próxima rodada!</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk6" style="padding:0 24px;color:#c8f135;text-shadow:0 0 10px rgba(200,241,53,.8)">🆘 Dúvidas? Fala com a gente → @predictsupport</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+    </span>
+    <!-- duplicate -->
+    <span style="display:inline-flex;align-items:center;gap:0;font-size:11px;font-weight:700;letter-spacing:.3px">
+      <span class="tk-item" data-key="tk1" style="padding:0 24px;color:#c8f135;text-shadow:0 0 10px rgba(200,241,53,.8),0 0 20px rgba(200,241,53,.4)">🚀 O PRIMEIRO mercado de previsão como Mini App do Telegram — você está entre os primeiros!</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk2" style="padding:0 24px;color:#00d4ff;text-shadow:0 0 10px rgba(0,212,255,.8),0 0 20px rgba(0,212,255,.4)">⚡ Depósito e saque em segundos · Instantâneo · Seguro</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk3" style="padding:0 24px;color:#c8f135;text-shadow:0 0 10px rgba(200,241,53,.8)">🤝 100% Peer-to-Peer · Seu TON vai direto pro vencedor</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk4" style="padding:0 24px;color:#ff3d6b;text-shadow:0 0 10px rgba(255,61,107,.8),0 0 20px rgba(255,61,107,.4)">💎 Previu certo → recebe na hora em TON · 1.9× a cada rodada</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk5" style="padding:0 24px;color:#00d4ff;text-shadow:0 0 10px rgba(0,212,255,.8)">👀 A galera já está prevendo agora — não perde a próxima rodada!</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+      <span class="tk-item" data-key="tk6" style="padding:0 24px;color:#c8f135;text-shadow:0 0 10px rgba(200,241,53,.8)">🆘 Dúvidas? Fala com a gente → @predictsupport</span>
+      <span style="color:rgba(200,241,53,.3);padding:0 4px">◆</span>
+    </span>
+  </div>
+</div>
+
+<div class="sec-hdr">
+  <span class="sec-title" id="yoloQuestion">🔴 LIVE · How many cars will pass in 1m30s?</span>
+  <button class="sec-more">View all →</button>
+</div>
+
+<!-- YOLO FEATURED -->
+<!-- VIDEO_PATCH_2026_05_03_HLS_STATIC_NO_FLASK -->
+<div class="feat-card" data-cat="yolo" onclick="toggleFeat(this)">
+  <!-- Clean video — no overlays -->
+  <div class="yolo-video-wrap">
+    <video id="yoloVideo" class="yolo-video-media" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+    <div id="videoOffline" style="position:absolute;inset:0;background:#0a0d14;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:3">
+      <div style="font-size:32px">📷</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:700">Stream offline</div>
+      <div style="font-size:10px;color:var(--muted);text-align:center;padding:0 16px" id="offlineReason"></div>
+    </div>
+  </div>
+  <!-- Stats below video — compact single row -->
+  <div style="display:flex;align-items:center;padding:6px 14px;border-top:1px solid var(--border);gap:14px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:var(--muted);font-weight:700">Cars:</span>
+      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--accent)" id="carCount">--</span>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border)"></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:var(--muted);font-weight:700">Line:</span>
+      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--gold)" id="metaDisplay">--</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:16px;padding:3px 8px">
+      <div class="live-dot"></div>
+      <span style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:1px">LIVE</span>
+    </div>
+  </div>
+  <div class="feat-body">
+    <div class="feat-meta">
+      <span class="feat-tag">🚗 Traffic Flow</span>
+      <span class="feat-tag">1m 30s rounds</span>
+    </div>
+    <!-- Last 5 rounds history -->
+    <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+      <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase">📊 Last rounds</div>
+      <div id="yoloHistory" style="display:flex;gap:5px;flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--muted)">No data yet...</span>
+      </div>
+    </div>
+    <div style="background:rgba(200,241,53,.04);border:1px solid rgba(200,241,53,.1);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:11px;color:var(--sub);line-height:1.8">
+      <div style="font-size:9px;font-weight:800;color:var(--accent);letter-spacing:1.5px;margin-bottom:4px">📋 RULES</div>
+      <div>🤖 AI counts cars crossing the detection line</div>
+      <div>⏱ Predict window: <strong style="color:var(--text)">first 30 seconds</strong> of each round</div>
+      <div>🏆 Result = total cars in 1m 30s · Win <strong style="color:var(--accent)">1.9×</strong></div>
+      <span class="feat-pool">Pool: <strong>142 TON</strong></span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="feat-timer" style="flex:1">
+        <span class="feat-timer-l">⏱ Counting window</span>
+        <span class="feat-timer-v" id="featTimer">01:30</span>
+      </div>
+      <div class="feat-timer" style="flex:1;border-color:rgba(239,68,68,.2);background:rgba(239,68,68,.06)" id="betWindowBox">
+        <span class="feat-timer-l" style="color:var(--sub)">🎯 Predict window</span>
+        <span class="feat-timer-v" id="betWindow" style="color:var(--red)">00:30</span>
+      </div>
+    </div>
+    <div id="betClosedBanner" style="display:none;margin-top:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:8px 14px;text-align:center;font-size:12px;font-weight:700;color:var(--red)">
+      🔒 Predictions closed — watching AI count...
+    </div>
+  </div>
+  <div class="liq">
+    <div class="liq-track">
+      <div class="liq-a" id="yoloBarA" style="width:72%;background:var(--green);"><span class="liq-pct-inner" id="yoloPctInA">--</span></div>
+      <div class="liq-b" style="background:var(--red);"><span class="liq-pct-inner" id="yoloPctInB">--</span></div>
+    </div>
+    <div class="liq-nums">
+      <div class="liq-side">
+        <span class="liq-side-lbl" id="yoloOverBookLabel">📈 OVER --</span>
+        <span class="liq-side-val" style="color:var(--green)" id="yoloValA">102.4 TON</span>
+        <span class="liq-side-pct" id="yoloPctA">72%</span>
+      </div>
+      <div class="liq-side" style="text-align:right">
+        <span class="liq-side-lbl" id="yoloUnderBookLabel">UNDER -- 📉</span>
+        <span class="liq-side-val" style="color:var(--red)" id="yoloValB">39.6 TON</span>
+        <span class="liq-side-pct" id="yoloPctB">28%</span>
+      </div>
+    </div>
+    <div class="liq-wait">
+      <span class="liq-wait-ico">⏳</span>
+      <div class="liq-wait-info">
+        <div class="liq-wait-title">Waiting for match</div>
+        <div class="liq-wait-sub" id="yoloWaitSub">Predict the opposite side for instant match</div>
+      </div>
+      <div class="liq-wait-amt">
+        <span class="liq-wait-val" id="yoloWait">62.8</span>
+        <span class="liq-wait-ton">TON</span>
+      </div>
+    </div>
+  </div>
+  <div class="bet-panel" id="featBet" style="display:none" onclick="event.stopPropagation()">
+    <div class="bet-title">Make your prediction</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="yn-btn yes-btn" style="text-align:center;padding:10px 8px" onclick="selYolo(this,'a')">
+        <div style="font-size:18px">📈</div><div id="yoloOverBtnLabel" style="font-size:12px;margin-top:3px;font-weight:700">OVER --</div>
+      </div>
+      <div class="yn-btn no-btn" style="text-align:center;padding:10px 8px;position:relative" onclick="selYolo(this,'b')">
+        <div class="match-badge">⚡ INSTANT MATCH</div>
+        <div style="font-size:18px">📉</div><div id="yoloUnderBtnLabel" style="font-size:12px;margin-top:3px;font-weight:700">UNDER --</div>
+      </div>
+    </div>
+    <div class="stake-wrap">
+      <div class="stake-top">
+        <span class="stake-label">STAKE AMOUNT</span>
+        <span class="stake-display">💎 <span id="fsDisplay">1.0</span> TON</span>
+      </div>
+      <div class="stake-quick">
+        <button class="stake-btn" onclick="quickStake('fs',1)">1</button>
+        <button class="stake-btn" onclick="quickStake('fs',5)">5</button>
+        <button class="stake-btn" onclick="quickStake('fs',10)">10</button>
+        <button class="stake-btn" onclick="quickStake('fs',50)">50</button>
+      </div>
+      <div class="stake-custom">
+        <button class="stake-minus" onclick="adjustStake('fs',-1)">−</button>
+        <input class="stake-input" id="fsInput" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('fs')">
+        <span class="stake-ton">TON</span>
+        <button class="stake-plus" onclick="adjustStake('fs',1)">+</button>
+      </div>
+    </div>
+    <div class="potential"><span class="pot-label">Potential win</span><span class="pot-val" id="fsPot">1.9 TON</span></div>
+    <button class="confirm-btn" onclick="confirmBet('yolo','fs')">CONFIRM PREDICTION</button>
+  </div>
+</div>
+
+<div class="sec-hdr">
+  <span class="sec-title">🔥 Featured Markets</span>
+  <button class="sec-more">View all →</button>
+</div>
+
+<div class="cards" id="marketCards">
+
+  <!-- POLITICS -->
+  <div class="mcard" data-cat="politics" onclick="toggleCard(this)">
+    <div class="mcard-top">
+      <div class="mcard-row1">
+        <div class="mcard-emoji" style="background:rgba(239,68,68,.1)">🏛</div>
+        <div class="mcard-info">
+          <div class="mcard-cat" style="color:var(--red)">Politics</div>
+          <div class="mcard-q">Who wins the 2026 elections: Lula or Flávio Bolsonaro?</div>
+        </div>
+      </div>
+      <div class="mcard-stats">
+        <span class="mcard-pool">Pool: <strong>3,840 TON</strong></span>
+        <span class="mcard-ends">Nov 2026</span>
+        <div class="mcard-odds">1.9×</div>
+      </div>
+    </div>
+    <div class="liq">
+      <div class="liq-track">
+        <div class="liq-a" id="polBarA" style="width:54%;background:var(--red);"><span class="liq-pct-inner" id="polPctInA">--</span></div>
+        <div class="liq-b" style="background:var(--green);"><span class="liq-pct-inner" id="polPctInB">--</span></div>
+      </div>
+      <div class="liq-nums">
+        <div class="liq-side">
+          <span class="liq-side-lbl">🔴 LULA</span>
+          <span class="liq-side-val" style="color:var(--red)" id="polValA">2,073 TON</span>
+          <span class="liq-side-pct" id="polPctA">54%</span>
+        </div>
+        <div class="liq-side" style="text-align:right">
+          <span class="liq-side-lbl">F. BOLSONARO 🟡</span>
+          <span class="liq-side-val" style="color:var(--green)" id="polValB">1,767 TON</span>
+          <span class="liq-side-pct" id="polPctB">46%</span>
+        </div>
+      </div>
+      <div class="liq-wait">
+        <span class="liq-wait-ico">⏳</span>
+        <div class="liq-wait-info">
+          <div class="liq-wait-title">Waiting for match</div>
+          <div class="liq-wait-sub" id="polWaitSub">Instant match — both sides</div>
+        </div>
+        <div class="liq-wait-amt">
+          <span class="liq-wait-val" id="polWait">306</span>
+          <span class="liq-wait-ton">TON</span>
+        </div>
+      </div>
+    </div>
+    <div class="bet-panel" onclick="event.stopPropagation()">
+      <div class="bet-title">Choose your candidate</div>
+      <div class="vs-row">
+        <div class="vs-opt red-opt" onclick="selVs(this,'a','pol')">
+          <div class="vs-avatar">🔴</div>
+          <div class="vs-name" style="color:var(--red)">Lula</div>
+          <div class="vs-pct" style="color:var(--red)" id="polVsA">54%</div>
+        </div>
+        <div class="vs-mid">VS</div>
+        <div class="vs-opt gold-opt" onclick="selVs(this,'b','pol')">
+          <div class="vs-avatar">🟡</div>
+          <div class="vs-name" style="color:var(--gold)">F. Bolsonaro</div>
+          <div class="vs-pct" style="color:var(--gold)" id="polVsB">46%</div>
+        </div>
+      </div>
+      <div class="stake-wrap">
+        <div class="stake-top">
+          <span class="stake-label">STAKE AMOUNT</span>
+          <span class="stake-display">💎 <span id="p1Display">1.0</span> TON</span>
+        </div>
+        <div class="stake-quick">
+          <button class="stake-btn" onclick="quickStake('p1',1)">1</button>
+          <button class="stake-btn" onclick="quickStake('p1',5)">5</button>
+          <button class="stake-btn" onclick="quickStake('p1',10)">10</button>
+          <button class="stake-btn" onclick="quickStake('p1',50)">50</button>
+        </div>
+        <div class="stake-custom">
+          <button class="stake-minus" onclick="adjustStake('p1',-1)">−</button>
+          <input class="stake-input" id="p1Input" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('p1')">
+          <span class="stake-ton">TON</span>
+          <button class="stake-plus" onclick="adjustStake('p1',1)">+</button>
+        </div>
+      </div>
+      <div class="potential"><span class="pot-label">Potential win</span><span class="pot-val" id="p1Pot">1.9 TON</span></div>
+      <div id="polQueueBox" style="margin-bottom:10px;display:none"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span>📋</span>
+        <span>Predictions enter a queue — matched in order of arrival</span>
+      </div>
+      <button class="confirm-btn" onclick="confirmBet('pol','p1')">CONFIRM PREDICTION</button>
+    </div>
+  </div>
+
+  <!-- FOOTBALL -->
+  <div class="mcard" data-cat="football" onclick="toggleCard(this)">
+    <div class="mcard-top">
+      <div class="mcard-row1">
+        <div class="mcard-emoji" style="background:rgba(34,197,94,.1)">⚽</div>
+        <div class="mcard-info">
+          <div class="mcard-cat" style="color:var(--green)">Football</div>
+          <div class="mcard-q">Will Brazil be the 2026 World Cup champion?</div>
+        </div>
+      </div>
+      <div class="mcard-stats">
+        <span class="mcard-pool">Pool: <strong>12,400 TON</strong></span>
+        <span class="mcard-ends">Jul 2026</span>
+        <div class="mcard-odds">1.9×</div>
+      </div>
+    </div>
+    <div class="liq">
+      <div class="liq-track">
+        <div class="liq-a" id="futBarA" style="width:68%;background:var(--green);"><span class="liq-pct-inner" id="futPctInA">--</span></div>
+        <div class="liq-b" style="background:var(--red);"><span class="liq-pct-inner" id="futPctInB">--</span></div>
+      </div>
+      <div class="liq-nums">
+        <div class="liq-side">
+          <span class="liq-side-lbl">✅ YES</span>
+          <span class="liq-side-val" style="color:var(--green)" id="futValA">8,432 TON</span>
+          <span class="liq-side-pct" id="futPctA">68%</span>
+        </div>
+        <div class="liq-side" style="text-align:right">
+          <span class="liq-side-lbl">NO ❌</span>
+          <span class="liq-side-val" style="color:var(--red)" id="futValB">3,968 TON</span>
+          <span class="liq-side-pct" id="futPctB">32%</span>
+        </div>
+      </div>
+      <div class="liq-wait">
+        <span class="liq-wait-ico">⏳</span>
+        <div class="liq-wait-info">
+          <div class="liq-wait-title">Waiting for match</div>
+          <div class="liq-wait-sub">Predict NO for instant match</div>
+        </div>
+        <div class="liq-wait-amt">
+          <span class="liq-wait-val" id="futWait">4,464</span>
+          <span class="liq-wait-ton">TON</span>
+        </div>
+      </div>
+    </div>
+    <div class="bet-panel" onclick="event.stopPropagation()">
+      <div class="bet-title">Your prediction</div>
+      <div class="yn-row">
+        <button class="yn-btn yes-btn" onclick="selYN(this,'a','fut')">✅ YES</button>
+        <button class="yn-btn no-btn" onclick="selYN(this,'b','fut')" style="position:relative">
+          <div class="match-badge">⚡ INSTANT MATCH</div>❌ NO
+        </button>
+      </div>
+      <div class="stake-wrap">
+        <div class="stake-top">
+          <span class="stake-label">STAKE AMOUNT</span>
+          <span class="stake-display">💎 <span id="f1Display">1.0</span> TON</span>
+        </div>
+        <div class="stake-quick">
+          <button class="stake-btn" onclick="quickStake('f1',1)">1</button>
+          <button class="stake-btn" onclick="quickStake('f1',5)">5</button>
+          <button class="stake-btn" onclick="quickStake('f1',10)">10</button>
+          <button class="stake-btn" onclick="quickStake('f1',50)">50</button>
+        </div>
+        <div class="stake-custom">
+          <button class="stake-minus" onclick="adjustStake('f1',-1)">−</button>
+          <input class="stake-input" id="f1Input" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('f1')">
+          <span class="stake-ton">TON</span>
+          <button class="stake-plus" onclick="adjustStake('f1',1)">+</button>
+        </div>
+      </div>
+      <div class="potential"><span class="pot-label">Potential win</span><span class="pot-val" id="f1Pot">1.9 TON</span></div>
+      <div id="futQueueBox" style="margin-bottom:10px;display:none"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span>📋</span>
+        <span>Predictions enter a queue — matched in order of arrival</span>
+      </div>
+      <button class="confirm-btn" onclick="confirmBet('fut','f1')">CONFIRM PREDICTION</button>
+    </div>
+  </div>
+
+  <!-- CRYPTO -->
+  <div class="mcard" data-cat="crypto" onclick="toggleCard(this)">
+    <div class="mcard-top">
+      <div class="mcard-row1">
+        <div class="mcard-emoji" style="background:rgba(245,158,11,.1)">₿</div>
+        <div class="mcard-info">
+          <div class="mcard-cat" style="color:var(--gold)">Crypto</div>
+          <div class="mcard-q">Will BTC close above $100K this week?</div>
+        </div>
+      </div>
+      <div class="mcard-stats">
+        <span class="mcard-pool">Pool: <strong>8,200 TON</strong></span>
+        <span class="mcard-ends">in 5 days</span>
+        <div class="mcard-odds">1.9×</div>
+      </div>
+    </div>
+    <div class="liq">
+      <div class="liq-track">
+        <div class="liq-a" id="criBarA" style="width:42%;background:var(--green);"><span class="liq-pct-inner" id="criPctInA">--</span></div>
+        <div class="liq-b" style="background:var(--red);"><span class="liq-pct-inner" id="criPctInB">--</span></div>
+      </div>
+      <div class="liq-nums">
+        <div class="liq-side">
+          <span class="liq-side-lbl">📈 YES</span>
+          <span class="liq-side-val" style="color:var(--green)" id="criValA">3,444 TON</span>
+          <span class="liq-side-pct" id="criPctA">42%</span>
+        </div>
+        <div class="liq-side" style="text-align:right">
+          <span class="liq-side-lbl">NO 📉</span>
+          <span class="liq-side-val" style="color:var(--red)" id="criValB">4,756 TON</span>
+          <span class="liq-side-pct" id="criPctB">58%</span>
+        </div>
+      </div>
+      <div class="liq-wait">
+        <span class="liq-wait-ico">⏳</span>
+        <div class="liq-wait-info">
+          <div class="liq-wait-title">Waiting for match</div>
+          <div class="liq-wait-sub">Predict YES for instant match</div>
+        </div>
+        <div class="liq-wait-amt">
+          <span class="liq-wait-val" id="criWait">1,312</span>
+          <span class="liq-wait-ton">TON</span>
+        </div>
+      </div>
+    </div>
+    <div class="bet-panel" onclick="event.stopPropagation()">
+      <div class="bet-title">BTC above $100K?</div>
+      <div class="yn-row">
+        <button class="yn-btn yes-btn" onclick="selYN(this,'a','cri')" style="position:relative">
+          <div class="match-badge">⚡ INSTANT MATCH</div>📈 YES
+        </button>
+        <button class="yn-btn no-btn" onclick="selYN(this,'b','cri')">📉 NO</button>
+      </div>
+      <div class="stake-wrap">
+        <div class="stake-top">
+          <span class="stake-label">STAKE AMOUNT</span>
+          <span class="stake-display">💎 <span id="c1Display">1.0</span> TON</span>
+        </div>
+        <div class="stake-quick">
+          <button class="stake-btn" onclick="quickStake('c1',1)">1</button>
+          <button class="stake-btn" onclick="quickStake('c1',5)">5</button>
+          <button class="stake-btn" onclick="quickStake('c1',10)">10</button>
+          <button class="stake-btn" onclick="quickStake('c1',50)">50</button>
+        </div>
+        <div class="stake-custom">
+          <button class="stake-minus" onclick="adjustStake('c1',-1)">−</button>
+          <input class="stake-input" id="c1Input" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('c1')">
+          <span class="stake-ton">TON</span>
+          <button class="stake-plus" onclick="adjustStake('c1',1)">+</button>
+        </div>
+      </div>
+      <div class="potential"><span class="pot-label">Potential win</span><span class="pot-val" id="c1Pot">1.9 TON</span></div>
+      <div id="criQueueBox" style="margin-bottom:10px;display:none"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span>📋</span>
+        <span>Predictions enter a queue — matched in order of arrival</span>
+      </div>
+      <button class="confirm-btn" onclick="confirmBet('cri','c1')">CONFIRM PREDICTION</button>
+    </div>
+  </div>
+
+  <!-- ENTERTAINMENT -->
+  <div class="mcard" data-cat="entertainment" onclick="toggleCard(this)">
+    <div class="mcard-top">
+      <div class="mcard-row1">
+        <div class="mcard-emoji" style="background:rgba(168,85,247,.1)">🎬</div>
+        <div class="mcard-info">
+          <div class="mcard-cat" style="color:#a855f7">Entertainment</div>
+          <div class="mcard-q">Will Neymar retire before 2027?</div>
+        </div>
+      </div>
+      <div class="mcard-stats">
+        <span class="mcard-pool">Pool: <strong>2,100 TON</strong></span>
+        <span class="mcard-ends">Dec 2026</span>
+        <div class="mcard-odds">1.9×</div>
+      </div>
+    </div>
+    <div class="liq">
+      <div class="liq-track">
+        <div class="liq-a" id="entBarA" style="width:71%;background:var(--green);"><span class="liq-pct-inner" id="entPctInA">--</span></div>
+        <div class="liq-b" style="background:var(--red);"><span class="liq-pct-inner" id="entPctInB">--</span></div>
+      </div>
+      <div class="liq-nums">
+        <div class="liq-side">
+          <span class="liq-side-lbl">✅ YES</span>
+          <span class="liq-side-val" style="color:var(--green)" id="entValA">1,491 TON</span>
+          <span class="liq-side-pct" id="entPctA">71%</span>
+        </div>
+        <div class="liq-side" style="text-align:right">
+          <span class="liq-side-lbl">NO ❌</span>
+          <span class="liq-side-val" style="color:var(--red)" id="entValB">609 TON</span>
+          <span class="liq-side-pct" id="entPctB">29%</span>
+        </div>
+      </div>
+      <div class="liq-wait">
+        <span class="liq-wait-ico">⏳</span>
+        <div class="liq-wait-info">
+          <div class="liq-wait-title">Waiting for match</div>
+          <div class="liq-wait-sub">Predict NO for instant match</div>
+        </div>
+        <div class="liq-wait-amt">
+          <span class="liq-wait-val" id="entWait">882</span>
+          <span class="liq-wait-ton">TON</span>
+        </div>
+      </div>
+    </div>
+    <div class="bet-panel" onclick="event.stopPropagation()">
+      <div class="bet-title">Your prediction</div>
+      <div class="yn-row">
+        <button class="yn-btn yes-btn" onclick="selYN(this,'a','ent')">✅ YES</button>
+        <button class="yn-btn no-btn" onclick="selYN(this,'b','ent')" style="position:relative">
+          <div class="match-badge">⚡ INSTANT MATCH</div>❌ NO
+        </button>
+      </div>
+      <div class="stake-wrap">
+        <div class="stake-top">
+          <span class="stake-label">STAKE AMOUNT</span>
+          <span class="stake-display">💎 <span id="e1Display">1.0</span> TON</span>
+        </div>
+        <div class="stake-quick">
+          <button class="stake-btn" onclick="quickStake('e1',1)">1</button>
+          <button class="stake-btn" onclick="quickStake('e1',5)">5</button>
+          <button class="stake-btn" onclick="quickStake('e1',10)">10</button>
+          <button class="stake-btn" onclick="quickStake('e1',50)">50</button>
+        </div>
+        <div class="stake-custom">
+          <button class="stake-minus" onclick="adjustStake('e1',-1)">−</button>
+          <input class="stake-input" id="e1Input" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('e1')">
+          <span class="stake-ton">TON</span>
+          <button class="stake-plus" onclick="adjustStake('e1',1)">+</button>
+        </div>
+      </div>
+      <div class="potential"><span class="pot-label">Potential win</span><span class="pot-val" id="e1Pot">1.9 TON</span></div>
+      <div id="entQueueBox" style="margin-bottom:10px;display:none"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span>📋</span>
+        <span>Predictions enter a queue — matched in order of arrival</span>
+      </div>
+      <button class="confirm-btn" onclick="confirmBet('ent','e1')">CONFIRM PREDICTION</button>
+    </div>
+  </div>
+
+</div>
+
+
+<div class="bottom-nav">
+  <button class="nav-item on"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
+  <button class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">Explore</span></button>
+  <button class="nav-item"><span class="nav-icon">📊</span><span class="nav-label">Portfolio</span></button>
+  <button class="nav-item"><span class="nav-icon">💎</span><span class="nav-label">Wallet</span></button>
+  <button class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></button>
+</div>
+
+<script>
+// Telegram WebApp init
+if(window.Telegram && window.Telegram.WebApp){
+  const tg = window.Telegram.WebApp;
+  tg.expand();
+  tg.setHeaderColor('#08090e');
+  tg.setBackgroundColor('#08090e');
+  // Haptic feedback on bet
+  window.haptic = ()=> tg.HapticFeedback?.impactOccurred('medium');
+} else {
+  window.haptic = ()=>{};
+}
+
+const markets = {
+  yolo: {a:102.4, b:39.6},
+  pol:  {a:2073,  b:1767},
+  fut:  {a:8432,  b:3968},
+  cri:  {a:3444,  b:4756},
+  ent:  {a:1491,  b:609},
+};
+const selectedSide = {};
+const stakeMap = {fs:'fs',p1:'p1',f1:'f1',c1:'c1',e1:'e1'};
+
+function getPct(a,b){return [Math.round(a/(a+b)*100), Math.round(b/(a+b)*100)];}
+function fmt(v){return v>=1000?(v/1000).toFixed(1)+'K':v.toFixed(1);}
+
+function updateLiq(mkt){
+  const {a,b}=markets[mkt];
+  const [pA,pB]=getPct(a,b);
+  const diff=Math.abs(a-b);
+  // Bar width
+  const bar=document.getElementById(mkt+'BarA');
+  if(bar)bar.style.width=pA+'%';
+  // Pct inside bars
+  const inA=document.getElementById(mkt+'PctInA');
+  const inB=document.getElementById(mkt+'PctInB');
+  if(inA)inA.textContent=pA+'%';
+  if(inB)inB.textContent=pB+'%';
+  // Side values
+  const vA=document.getElementById(mkt+'ValA');const vB=document.getElementById(mkt+'ValB');
+  const pA2=document.getElementById(mkt+'PctA');const pB2=document.getElementById(mkt+'PctB');
+  if(vA)vA.textContent=fmt(a)+' TON';
+  if(vB)vB.textContent=fmt(b)+' TON';
+  if(pA2)pA2.textContent=pA+'%';
+  if(pB2)pB2.textContent=pB+'%';
+  const vsA=document.getElementById(mkt+'VsA');const vsB=document.getElementById(mkt+'VsB');
+  if(vsA)vsA.textContent=pA+'%';if(vsB)vsB.textContent=pB+'%';
+  const wEl=document.getElementById(mkt+'Wait');
+  if(wEl)wEl.textContent=diff>=1000?(diff/1000).toFixed(1)+'K':diff.toFixed(0);
+  // Dynamic incentive text for politics
+  if(mkt==='pol'){
+    const waitSub=document.getElementById('polWaitSub');
+    if(waitSub){
+      if(diff < 10){
+        waitSub.textContent='Instant match — both sides';
+      } else {
+        const minSide=a>b?'F. Bolsonaro':'Lula';
+        waitSub.textContent='Bet '+minSide+' for instant match';
+      }
+    }
+  }
+}
+
+// TABS — filter cards by category
+function setTab(el,cat){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  const feat=document.querySelector('.feat-card');
+  const cards=document.querySelectorAll('.mcard');
+  if(cat==='all'||cat==='yolo'){feat.style.display='';} else {feat.style.display='none';}
+  cards.forEach(c=>{
+    const cc=c.dataset.cat;
+    c.style.display=(cat==='all'||cc===cat)?'':'none';
+  });
+  // count visible markets
+  let count=(cat==='all'||cat==='yolo'?1:0);
+  cards.forEach(c=>{ if(c.style.display!=='none') count++; });
+  document.getElementById('activeMarketsCount').textContent=count;
+}
+
+function toggleCard(card){
+  const wasExp=card.classList.contains('expanded');
+  document.querySelectorAll('.mcard').forEach(c=>{c.classList.remove('expanded');const bp=c.querySelector('.bet-panel');if(bp)bp.style.display='none';});
+  if(!wasExp){card.classList.add('expanded');const bp=card.querySelector('.bet-panel');if(bp)bp.style.display='block';}
+  event.stopPropagation();
+}
+function toggleFeat(card){
+  const bp=document.getElementById('featBet');
+  bp.style.display=bp.style.display==='block'?'none':'block';
+  event.stopPropagation();
+}
+
+function selYN(btn,side,mkt){event.stopPropagation();const row=btn.closest('.yn-row');row.querySelectorAll('.yn-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');selectedSide[mkt]=side;}
+function selVs(opt,side,mkt){event.stopPropagation();const row=opt.closest('.vs-row');row.querySelectorAll('.vs-opt').forEach(o=>o.classList.remove('sel'));opt.classList.add('sel');selectedSide[mkt]=side;}
+function selYolo(btn,side){event.stopPropagation();const grid=btn.closest('[style*="grid"]');grid.querySelectorAll('.yn-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');selectedSide['yolo']=side;}
+
+// Stake functions
+function getStakeVal(prefix){return parseFloat(document.getElementById(prefix+'Input')?.value||1);}
+function updatePot(prefix){
+  const v=getStakeVal(prefix);
+  const disp=document.getElementById(prefix+'Display');
+  const pot=document.getElementById(prefix+'Pot');
+  if(disp)disp.textContent=v.toFixed(1);
+  if(pot)pot.textContent=(v*1.9).toFixed(2)+' TON';
+}
+function quickStake(prefix,val){
+  event.stopPropagation();
+  document.querySelectorAll(`[onclick*="quickStake('${prefix}"]`).forEach(b=>b.classList.remove('sel'));
+  event.target.classList.add('sel');
+  const inp=document.getElementById(prefix+'Input');
+  if(inp){inp.value=val;updatePot(prefix);}
+}
+function adjustStake(prefix,delta){
+  event.stopPropagation();
+  const inp=document.getElementById(prefix+'Input');
+  if(inp){let v=parseFloat(inp.value||0)+delta;inp.value=Math.max(1,Math.round(v));updatePot(prefix);}
+}
+function inputStake(prefix){event.stopPropagation();updatePot(prefix);}
+
+// Track user bets per market
+const userBets = {}; // mkt -> {side, val, status: 'pending'|'won'|'lost'}
+
+function confirmBet(mkt,prefix){
+  event.stopPropagation();
+
+  // YOLO: only allow bet if bet window is open
+  if(mkt==='yolo' && !betOpen){
+    showMsg(event.target, '🔒 Betting closed!', '#ef4444');
+    return;
+  }
+
+  const side=selectedSide[mkt]||'a';
+  const val=getStakeVal(prefix);
+  if(val<=0) return;
+
+  // Update liquidity
+  if(side==='a')markets[mkt].a+=val; else markets[mkt].b+=val;
+  updateLiq(mkt);
+
+  if(mkt==='yolo'){
+    // YOLO: single bet, locked until result
+    userBets[mkt]={side, val, prefix, status:'pending'};
+    const btn=event.target;
+    btn.textContent='⏳ Awaiting result...';
+    btn.style.background='rgba(245,158,11,.15)';
+    btn.style.color='var(--gold)';
+    btn.style.border='1px solid rgba(245,158,11,.3)';
+    btn.disabled=true;
+  } else {
+    // Other markets: order book — can bet multiple times, enters queue
+    if(!orderBook[mkt]) orderBook[mkt]=[];
+    const orderId = Date.now();
+    orderBook[mkt].push({id:orderId, side, val, status:'queued'});
+    updateOrderStatus(mkt, prefix);
+
+    // Try to match instantly if counterpart available
+    tryMatch(mkt);
+
+    const btn=event.target;
+    const orig=btn.textContent;
+    btn.textContent='✅ Added to queue!';
+    btn.style.background='rgba(200,241,53,.15)';
+    btn.style.color='var(--accent)';
+    setTimeout(()=>{
+      btn.textContent=orig;
+      btn.style.background='';
+      btn.style.color='';
+    },1500);
+  }
+}
+
+function showMsg(btn, msg, color){
+  const orig=btn.textContent;
+  const origBg=btn.style.background;
+  btn.textContent=msg;
+  btn.style.background=color;
+  btn.style.color='#000';
+  setTimeout(()=>{btn.textContent=orig;btn.style.background=origBg;btn.style.color='';},1500);
+}
+
+function resolvebet(mkt){
+  const bet=userBets[mkt];
+  if(!bet||bet.status!=='pending') return;
+
+  // Simulate random result (in real app: backend sends result)
+  const won=Math.random()>0.5;
+  bet.status=won?'won':'lost';
+
+  // Find confirm btn in expanded card
+  const cards=document.querySelectorAll('.mcard');
+  cards.forEach(card=>{
+    const cat=card.dataset.cat;
+    const mktMap={politics:'pol',football:'fut',crypto:'cri',entertainment:'ent'};
+    if(mktMap[cat]===mkt){
+      const btn=card.querySelector('.confirm-btn');
+      if(btn){
+        if(won){
+          const profit=(bet.val*1.9).toFixed(2);
+          btn.textContent='🏆 You won +'+profit+' TON!';
+          btn.style.background='var(--green)';
+          btn.style.color='#000';
+        } else {
+          btn.textContent='❌ You lost '+bet.val.toFixed(1)+' TON';
+          btn.style.background='rgba(239,68,68,.3)';
+          btn.style.color='var(--red)';
+        }
+        btn.style.border='none';
+        btn.disabled=false;
+        // Reset after 4s
+        setTimeout(()=>{
+          btn.textContent='CONFIRM PREDICTION';
+          btn.style.background='';
+          btn.style.color='';
+          btn.style.border='';
+          delete userBets[mkt];
+        },4000);
+      }
+    }
+  });
+}
+
+// Order book per market
+const orderBook = {};
+
+function tryMatch(mkt){
+  if(!orderBook[mkt]) return;
+  const queued = orderBook[mkt].filter(o=>o.status==='queued');
+  const aOrders = queued.filter(o=>o.side==='a');
+  const bOrders = queued.filter(o=>o.side==='b');
+  if(aOrders.length>0 && bOrders.length>0){
+    aOrders[0].status='matched';
+    bOrders[0].status='matched';
+  }
+  // Show queue box
+  const qBox=document.getElementById(mkt+'QueueBox');
+  if(qBox && orderBook[mkt].length>0){
+    qBox.style.display='block';
+    qBox.innerHTML=buildQueueHTML(mkt);
+  }
+  updateOrderStatus(mkt);
+}
+
+function updateOrderStatus(mkt, prefix){
+  if(!orderBook[mkt]) return;
+  const queued=orderBook[mkt].filter(o=>o.status==='queued');
+  const matched=orderBook[mkt].filter(o=>o.status==='matched');
+  // Update wait box if visible
+  const waitBox=document.getElementById(mkt+'QueueBox');
+  if(waitBox){
+    waitBox.innerHTML=buildQueueHTML(mkt);
+  }
+}
+
+function buildQueueHTML(mkt){
+  if(!orderBook[mkt]||orderBook[mkt].length===0) return '';
+  const orders=orderBook[mkt].slice(-5).reverse(); // last 5
+  return orders.map(o=>{
+    const icon=o.status==='matched'?'✅':'⏳';
+    const color=o.status==='matched'?'var(--green)':'var(--gold)';
+    const sideLabel=o.side==='a'?'YES':'NO';
+    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)">
+      <span style="color:${color}">${icon} ${sideLabel}</span>
+      <span style="font-family:JetBrains Mono;color:var(--text)">${o.val.toFixed(1)} TON</span>
+      <span style="color:${color};font-size:10px">${o.status==='matched'?'Matched!':'In queue'}</span>
+    </div>`;
+  }).join('');
+}
+
+function resolveYolo(){
+  const bet=userBets['yolo'];
+  if(!bet||bet.status!=='pending') return;
+  const won=Math.random()>0.5;
+  bet.status=won?'won':'lost';
+  const btn=document.querySelector('#featBet .confirm-btn');
+  if(btn){
+    if(won){
+      const profit=(bet.val*1.9).toFixed(2);
+      btn.textContent='🏆 You won +'+profit+' TON!';
+      btn.style.background='var(--green)';btn.style.color='#000';
+    } else {
+      btn.textContent='❌ You lost '+bet.val.toFixed(1)+' TON';
+      btn.style.background='rgba(239,68,68,.3)';btn.style.color='var(--red)';
+    }
+    btn.disabled=false;
+    setTimeout(()=>{
+      btn.textContent='CONFIRM PREDICTION';
+      btn.style.background='';btn.style.color='';
+      delete userBets['yolo'];
+    },4000);
+  }
+}
+
+// Old timer removed — handled by pollYolo() from API
+
+// Online users fluctuate
+let online=141;
+setInterval(()=>{
+  online+=Math.floor((Math.random()-.4)*3);
+  online=Math.max(100,online);
+  document.querySelectorAll('#onlineCount').forEach(el=>el.textContent=online);
+},4000);
+
+// Init
+Object.keys(markets).forEach(m=>updateLiq(m));
+
+// ── MASSPIKE API ──
+const API = '';  // static mode: Nginx/python http.server serves /hls and /status.json
+let lastPhase = '';
+let frameErrors = 0;
+let currentYoloLine = null;
+
+function setText(id, text){
+  const el = document.getElementById(id);
+  if(el) el.textContent = text;
+}
+
+function buildYoloLabels(lineValue){
+  if(lineValue === null || lineValue === undefined || lineValue === '--'){
+    return {
+      question: '🔴 LIVE · How many cars will pass in 1m30s?',
+      over: 'OVER --',
+      under: 'UNDER --',
+      overBook: '📈 OVER --',
+      underBook: 'UNDER -- 📉',
+      wait: 'Waiting for adaptive line...'
+    };
+  }
+  const line = Number(lineValue);
+  const overMin = line + 1;
+  return {
+    question: `🚗 Will more than ${line} cars pass in the next 1m30s?`,
+    over: `OVER ${overMin}+`,
+    under: `UNDER ≤ ${line}`,
+    overBook: `📈 OVER ${overMin}+`,
+    underBook: `UNDER ≤ ${line} 📉`,
+    wait: `UNDER wins at ${line} or less. OVER needs ${overMin}+ cars.`
+  };
+}
+
+function updateYoloMarketLabels(lineValue, apiData){
+  currentYoloLine = lineValue;
+  const labels = buildYoloLabels(lineValue);
+  setText('yoloQuestion', apiData?.question || labels.question);
+  setText('yoloOverBookLabel', apiData?.sides?.over?.label ? '📈 ' + apiData.sides.over.label : labels.overBook);
+  setText('yoloUnderBookLabel', apiData?.sides?.under?.label ? apiData.sides.under.label + ' 📉' : labels.underBook);
+  setText('yoloOverBtnLabel', apiData?.sides?.over?.label || labels.over);
+  setText('yoloUnderBtnLabel', apiData?.sides?.under?.label || labels.under);
+  setText('yoloWaitSub', labels.wait);
+}
+
+async function pollYolo(){
+  try {
+    const res = await fetch(API+'/status.json?ts=' + Date.now(), {cache:'no-store', headers:{'ngrok-skip-browser-warning':'1'}});
+    const d = await res.json();
+
+    // Car count
+    const countEl = document.getElementById('carCount');
+    const currentCount = d.count?.current ?? 0;
+    if(countEl) countEl.textContent = currentCount;
+
+    // Phase
+    const phase = d.phase;
+    const endsIn = Math.max(0, Math.round(d.phase_ends_in));
+    const betEl  = document.getElementById('betWindow');
+    const featEl = document.getElementById('featTimer');
+    const banner = document.getElementById('betClosedBanner');
+    const betBox = document.getElementById('betWindowBox');
+    const featBet= document.getElementById('featBet');
+
+    if(phase === 'bet'){
+      betOpen = true;
+      if(betEl){ betEl.textContent=fmtTime(endsIn); betEl.style.color=endsIn<=10?'var(--red)':endsIn<=20?'var(--gold)':'var(--green)';}
+      if(banner) banner.style.display='none';
+    } else {
+      betOpen = false;
+      if(betEl){ betEl.textContent='CLOSED'; betEl.style.color='var(--red)';}
+      if(banner) banner.style.display='block';
+      if(featBet) featBet.style.display='none';
+    }
+
+    if(featEl){
+      if(phase==='counting') featEl.textContent=fmtTime(endsIn);
+      else if(phase==='bet') featEl.textContent=fmtTime(60);
+    }
+
+    // Adaptive line / market labels
+    const lineValue = d.line?.value ?? null;
+    const lineEl=document.getElementById('yoloLine');
+    if(lineEl && d.line?.label) lineEl.textContent=d.line.label;
+    const metaEl=document.getElementById('metaDisplay');
+    if(metaEl) metaEl.textContent=lineValue ?? '--';
+    updateYoloMarketLabels(lineValue, d);
+
+    // Result
+    if((phase==='result'||phase==='pause') && d.result) showYoloResult(d.result);
+
+    // Phase change → resolve bet
+    if(lastPhase!==phase){
+      if((phase==='result'||phase==='pause') && d.result) resolveYoloBet(d.result.winner);
+      lastPhase=phase;
+    }
+
+    // History
+    if(d.history) updateHistory(d.history);
+
+    // Liquidity
+    if(d.sides){
+      const tot0=(d.sides.over?.total_matched||0)+(d.sides.over?.total_waiting||0);
+      const tot1=(d.sides.under?.total_matched||0)+(d.sides.under?.total_waiting||0);
+      if(tot0+tot1>0){ markets.yolo.a=tot0; markets.yolo.b=tot1; updateLiq('yolo'); }
+    }
+
+    // Stream info removed from video overlay
+
+  } catch(e){ console.warn('API poll error:', e.message); }
+}
+
+function fmtTime(sec){
+  const m=Math.floor(sec/60).toString().padStart(2,'0');
+  const s=(sec%60).toString().padStart(2,'0');
+  return m+':'+s;
+}
+
+function showYoloResult(result){
+  let box=document.getElementById('yoloResultBox');
+  if(!box){ box=document.createElement('div'); box.id='yoloResultBox'; box.style.cssText='margin:0 18px 10px;padding:14px;border-radius:12px;text-align:center;font-weight:800;font-size:15px;'; document.querySelector('.feat-card').after(box); }
+  const won=result.winner==='OVER';
+  box.style.background=won?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)';
+  box.style.border=won?'1px solid rgba(34,197,94,.3)':'1px solid rgba(239,68,68,.3)';
+  box.style.color=won?'var(--green)':'var(--red)';
+  const ruleTxt = result.winner==='OVER' ? `passed the line by ${Math.max(0, result.count-result.line)} car(s)` : `did not pass the line`;
+  box.innerHTML=`${won?'🏆':'❌'} ${result.winner} — ${result.count} cars / line ${result.line} (${ruleTxt})`;
+}
+
+function resolveYoloBet(winner){
+  const bet=userBets['yolo'];
+  if(!bet||bet.status!=='pending') return;
+  const userWon=(winner==='OVER'&&bet.side==='a')||(winner==='UNDER'&&bet.side==='b');
+  bet.status=userWon?'won':'lost';
+  const btn=document.querySelector('#featBet .confirm-btn');
+  if(btn){
+    btn.textContent=userWon?`🏆 You won +${(bet.val*1.9).toFixed(2)} TON!`:`❌ You lost ${bet.val.toFixed(1)} TON`;
+    btn.style.background=userWon?'var(--green)':'rgba(239,68,68,.3)';
+    btn.style.color=userWon?'#000':'var(--red)';
+    btn.disabled=false;
+    setTimeout(()=>{btn.textContent='CONFIRM PREDICTION';btn.style.background='';btn.style.color='';delete userBets['yolo'];},4000);
+  }
+}
+
+function updateHistory(history){
+  const box=document.getElementById('yoloHistory');
+  if(!box||!history.length) return;
+  box.innerHTML=history.slice(-5).reverse().map(h=>{
+    const isOver=h.winner==='OVER';
+    const color=isOver?'var(--green)':'var(--red)';
+    const bg=isOver?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)';
+    const border=isOver?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)';
+    const arrow=isOver?'↑':'↓';
+    return `<div style="width:32px;height:32px;border-radius:50%;background:${bg};border:1.5px solid ${border};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:${color}">${arrow}</div>`;
+  }).join('');
+}
+
+
+function setYoloCountLine(x1,y1,x2,y2){
+  const ids = [
+    ['yoloCountLine', 'x1', x1], ['yoloCountLine', 'y1', y1], ['yoloCountLine', 'x2', x2], ['yoloCountLine', 'y2', y2],
+    ['yoloCountLineShadow', 'x1', x1], ['yoloCountLineShadow', 'y1', y1], ['yoloCountLineShadow', 'x2', x2], ['yoloCountLineShadow', 'y2', y2],
+    ['yoloCountDotA', 'cx', x1], ['yoloCountDotA', 'cy', y1], ['yoloCountDotB', 'cx', x2], ['yoloCountDotB', 'cy', y2]
+  ];
+  ids.forEach(([id, attr, val]) => {
+    const el = document.getElementById(id);
+    if(el) el.setAttribute(attr, String(val));
+  });
+}
+
+function updateYoloCountLineFromApi(d){
+  const line = d?.line;
+  if(!line) return;
+
+  // Aceita vários formatos comuns do backend:
+  // 1) line.points = [{x,y},{x,y}]
+  // 2) line.p1 / line.p2 = {x,y}
+  // 3) line.x1, line.y1, line.x2, line.y2
+  // 4) line.coords = [x1,y1,x2,y2]
+  let x1,y1,x2,y2;
+  if(Array.isArray(line.points) && line.points.length >= 2){
+    x1 = line.points[0].x; y1 = line.points[0].y; x2 = line.points[1].x; y2 = line.points[1].y;
+  } else if(line.p1 && line.p2){
+    x1 = line.p1.x; y1 = line.p1.y; x2 = line.p2.x; y2 = line.p2.y;
+  } else if(['x1','y1','x2','y2'].every(k => line[k] !== undefined)){
+    x1 = line.x1; y1 = line.y1; x2 = line.x2; y2 = line.y2;
+  } else if(Array.isArray(line.coords) && line.coords.length >= 4){
+    [x1,y1,x2,y2] = line.coords;
+  } else {
+    return;
+  }
+
+  // Se vier em pixels 640x360/1280x720, converte para porcentagem.
+  const maxVal = Math.max(x1,y1,x2,y2);
+  if(maxVal > 100){
+    const w = line.width || line.frame_width || 640;
+    const h = line.height || line.frame_height || 360;
+    x1 = x1 / w * 100; x2 = x2 / w * 100;
+    y1 = y1 / h * 100; y2 = y2 / h * 100;
+  }
+  setYoloCountLine(x1,y1,x2,y2);
+}
+
+
+
+async function loadYoloLine(){
+  // No-op: a linha já vem desenhada no /video_feed.
+  // Evita chamadas extras para /line no celular/ngrok.
+}
+
+// Local processed video from masspike.py — clean MJPEG stream with only line + count
+// HLS video generated by masspike_hls_static_no_flask.py and served as static files.
+function initVideo(){
+  const video = document.getElementById('yoloVideo');
+  const offline = document.getElementById('videoOffline');
+  const reason = document.getElementById('offlineReason');
+  if(!video) return;
+
+  const src = API + '/hls/stream.m3u8';
+
+  function showOffline(msg){
+    if(offline) offline.style.display = 'flex';
+    if(reason) reason.textContent = msg || 'Aguardando HLS /hls/stream.m3u8.';
+  }
+  function hideOffline(){
+    if(offline) offline.style.display = 'none';
+  }
+
+  video.addEventListener('playing', hideOffline);
+  video.addEventListener('error', () => showOffline('Stream HLS ainda não está pronto.'));
+
+  if(window.Hls && Hls.isSupported()){
+    const hls = new Hls({
+      liveSyncDuration: 2,
+      liveMaxLatencyDuration: 6,
+      lowLatencyMode: false,
+      backBufferLength: 10,
+      maxBufferLength: 8
+    });
+    hls.loadSource(src);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play().catch(()=>{});
+    });
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if(data && data.fatal){
+        showOffline('Reconectando HLS...');
+        try { hls.destroy(); } catch(e) {}
+        setTimeout(initVideo, 2500);
+      }
+    });
+  } else if(video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src = src;
+    video.addEventListener('loadedmetadata', () => video.play().catch(()=>{}));
+  } else {
+    showOffline('Este navegador não suporta HLS.');
+  }
+}
+
+// Start everything
+// Atualização rápida do card: o vídeo processado já contém linha/pontos/contador;
+// este polling só mantém o número Cars/Line abaixo do vídeo acompanhando o stream.
+window.addEventListener('load', ()=>{
+  initVideo();
+  pollYolo();
+
+  const STATUS_POLL_MS = 100; // teste local: atualiza Cars/Line a cada 100ms
+  setInterval(pollYolo, STATUS_POLL_MS);
+});
+
+</script>
+</body>
+</html>
