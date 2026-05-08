@@ -433,16 +433,16 @@ iframe.yolo-video-media{border:0;}
       <div style="font-size:10px;color:var(--muted);text-align:center;padding:0 16px" id="offlineReason"></div>
     </div>
   </div>
-  <!-- Stats below video — compact single row -->
-  <div style="display:flex;align-items:center;padding:6px 14px;border-top:1px solid var(--border);gap:14px">
-    <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--muted);font-weight:700">Cars:</span>
-      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--accent)" id="carCount">--</span>
-    </div>
-    <div style="width:1px;height:16px;background:var(--border)"></div>
+  <!-- Stats below video — sem contador ao vivo fora do vídeo -->
+  <div style="display:flex;align-items:center;padding:7px 14px;border-top:1px solid var(--border);gap:14px">
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:10px;color:var(--muted);font-weight:700">Line:</span>
       <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--gold)" id="metaDisplay">--</span>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border)"></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:var(--muted);font-weight:700">Result:</span>
+      <span style="font-family:JetBrains Mono;font-size:14px;font-weight:800;color:var(--accent)" id="roundResultMini">WAITING</span>
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:16px;padding:3px 8px">
       <div class="live-dot"></div>
@@ -915,6 +915,32 @@ const markets = {
   ent:  {a:1491,  b:609},
 };
 const selectedSide = {};
+
+function updateMiniRoundResult(data){
+  const el = document.getElementById('roundResultMini');
+  if(!el) return;
+
+  const phase = data?.phase || '';
+  const result = data?.result || null;
+
+  if(result && (phase === 'result' || phase === 'pause')){
+    const winner = result.winner || '--';
+    const count = result.count ?? '--';
+    const line = result.line ?? '--';
+    el.textContent = `${winner} · ${count}/${line}`;
+    el.style.color = winner === 'OVER' ? 'var(--green)' : 'var(--red)';
+  } else if(phase === 'bet'){
+    el.textContent = 'PREDICTING';
+    el.style.color = 'var(--gold)';
+  } else if(phase === 'counting'){
+    el.textContent = 'COUNTING';
+    el.style.color = 'var(--accent)';
+  } else {
+    el.textContent = 'WAITING';
+    el.style.color = 'var(--accent)';
+  }
+}
+
 const stakeMap = {fs:'fs',p1:'p1',f1:'f1',c1:'c1',e1:'e1'};
 
 function getPct(a,b){return [Math.round(a/(a+b)*100), Math.round(b/(a+b)*100)];}
