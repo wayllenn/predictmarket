@@ -409,7 +409,7 @@ iframe.yolo-video-media{border:0;}
 </div>
 
 <div class="sec-hdr">
-  <span class="sec-title" id="yoloQuestion">🔴 LIVE · How many cars will pass in 1m30s?</span>
+  <span class="sec-title" id="yoloQuestion">🔴 LIVE · How many vehicles will pass in 1m30s?</span>
   <button class="sec-more">View all →</button>
 </div>
 
@@ -421,7 +421,7 @@ iframe.yolo-video-media{border:0;}
     <iframe
       id="yoloVideo"
       class="yolo-video-media"
-      src="https://www.youtube.com/embed/A7YBiys3DeU?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1"
+      src="https://www.youtube.com/embed/A7YBiys3DeU?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&live=1&v=20260508172837"
       title="PredictMarket Live Stream"
       frameborder="0"
       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -463,9 +463,9 @@ iframe.yolo-video-media{border:0;}
     </div>
     <div style="background:rgba(200,241,53,.04);border:1px solid rgba(200,241,53,.1);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:11px;color:var(--sub);line-height:1.8">
       <div style="font-size:9px;font-weight:800;color:var(--accent);letter-spacing:1.5px;margin-bottom:4px">📋 RULES</div>
-      <div>🤖 AI counts cars crossing the detection line</div>
+      <div>🤖 AI counts vehicles crossing the detection line</div>
       <div>⏱ Watch the official timer inside the live video</div>
-      <div>🏆 Result = total cars in 1m 30s · Win <strong style="color:var(--accent)">1.9×</strong></div>
+      <div>🏆 Result = total vehicles in 1m 30s · Win <strong style="color:var(--accent)">1.9×</strong></div>
       <span class="feat-pool">Pool: <strong>142 TON</strong></span>
     </div>
     <!-- QUICK BET COMPLETO — perto do vídeo -->
@@ -1277,7 +1277,7 @@ function setText(id, text){
 function buildYoloLabels(lineValue){
   if(lineValue === null || lineValue === undefined || lineValue === '--'){
     return {
-      question: '🔴 LIVE · How many cars will pass in 1m30s?',
+      question: '🔴 LIVE · How many vehicles will pass in 1m30s?',
       over: 'OVER --',
       under: 'UNDER --',
       overBook: '📈 OVER --',
@@ -1288,12 +1288,12 @@ function buildYoloLabels(lineValue){
   const line = Number(lineValue);
   const overMin = line + 1;
   return {
-    question: `🚗 Will more than ${line} cars pass in the next 1m30s?`,
+    question: `🚗 Will more than ${line} vehicles pass in the next 1m30s?`,
     over: `OVER ${overMin}+`,
     under: `UNDER ≤ ${line}`,
     overBook: `📈 OVER ${overMin}+`,
     underBook: `UNDER ≤ ${line} 📉`,
-    wait: `UNDER wins at ${line} or less. OVER needs ${overMin}+ cars.`
+    wait: `UNDER wins at ${line} or less. OVER needs ${overMin}+ vehicles.`
   };
 }
 
@@ -1399,7 +1399,7 @@ function showYoloResult(result){
   box.style.border=won?'1px solid rgba(34,197,94,.3)':'1px solid rgba(239,68,68,.3)';
   box.style.color=won?'var(--green)':'var(--red)';
   const ruleTxt = result.winner==='OVER' ? `passed the line by ${Math.max(0, result.count-result.line)} car(s)` : `did not pass the line`;
-  box.innerHTML=`${won?'🏆':'❌'} ${result.winner} — ${result.count} cars / line ${result.line} (${ruleTxt})`;
+  box.innerHTML=`${won?'🏆':'❌'} ${result.winner} — ${result.count} vehicles / line ${result.line} (${ruleTxt})`;
 }
 
 function resolveYoloBet(winner){
@@ -1494,15 +1494,35 @@ function initVideo(){
 
 // Start everything
 // Atualização rápida do card: o vídeo processado já contém linha/pontos/contador;
-// este polling só mantém o número Cars/Line abaixo do vídeo acompanhando o stream.
+// este polling só mantém o número Vehicles/Line abaixo do vídeo acompanhando o stream.
 window.addEventListener('load', ()=>{
   initVideo();
   pollYolo();
 
-  const STATUS_POLL_MS = 100; // teste local: atualiza Cars/Line a cada 100ms
+  const STATUS_POLL_MS = 100; // teste local: atualiza Vehicles/Line a cada 100ms
   setInterval(pollYolo, STATUS_POLL_MS);
 });
 
 </script>
+
+<script>
+(function forceFreshYoutubeEmbed(){
+  const iframe = document.getElementById('yoloVideo');
+  if (!iframe) return;
+  const base = "https://www.youtube.com/embed/A7YBiys3DeU";
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    playsinline: "1",
+    rel: "0",
+    modestbranding: "1",
+    enablejsapi: "1",
+    live: "1",
+    v: "20260508172837"
+  });
+  iframe.src = base + "?" + params.toString();
+})();
+</script>
+
 </body>
 </html>
