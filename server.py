@@ -814,9 +814,92 @@ def desenhar_timer_oficial_video(f):
     cv2.rectangle(f, (bx1, by1), (int(bx1 + (bx2 - bx1) * progress), by2), color, -1)
 
 
+
+
 def fmt_segundos_video(sec):
     sec = max(0, int(sec))
     return f"{sec // 60:02d}:{sec % 60:02d}"
+
+
+def desenhar_tempo_no_video(f):
+    """
+    Timer oficial dentro do vídeo.
+    Primeiros 30 segundos de aposta aparecem em vermelho.
+    """
+    agora = time.time()
+
+    if rodada_em_pausa:
+        phase_txt = "NEXT ROUND"
+        remaining = max(0, int(round(pausa_ate - agora))) if pausa_ate else 0
+        color = (255, 210, 31)
+        border = (90, 75, 25)
+        bg_hint = (12, 10, 4)
+    else:
+        elapsed = agora - tempo_rodada_inicio
+        phase = _api_phase(elapsed)
+        remaining = max(0, int(round(_api_ends_in(elapsed, phase))))
+
+        if phase == "bet":
+            phase_txt = "PREDICT OPEN"
+            color = (0, 0, 255)      # vermelho
+            border = (0, 0, 180)
+            bg_hint = (18, 4, 4)
+        elif phase == "counting":
+            phase_txt = "COUNTING"
+            color = (200, 241, 53)
+            border = (80, 120, 35)
+            bg_hint = (4, 12, 4)
+        elif phase == "result":
+            phase_txt = "RESULT"
+            color = (255, 210, 31)
+            border = (90, 75, 25)
+            bg_hint = (12, 10, 4)
+        else:
+            phase_txt = "NEXT ROUND"
+            color = (255, 210, 31)
+            border = (90, 75, 25)
+            bg_hint = (12, 10, 4)
+
+    timer_txt = fmt_segundos_video(remaining)
+
+    x1 = LARGURA - 230
+    y1 = 14
+    x2 = LARGURA - 14
+    y2 = 86
+
+    overlay = f.copy()
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), bg_hint, -1)
+    cv2.addWeighted(overlay, 0.82, f, 0.18, 0, f)
+
+    cv2.rectangle(f, (x1, y1), (x2, y2), border, 2)
+
+    if phase_txt == "PREDICT OPEN":
+        cv2.circle(f, (x1 + 14, y1 + 16), 5, (0, 0, 255), -1)
+        label_x = x1 + 26
+    else:
+        label_x = x1 + 12
+
+    cv2.putText(
+        f,
+        phase_txt,
+        (label_x, y1 + 24),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.45,
+        (235, 235, 235),
+        1,
+        cv2.LINE_AA,
+    )
+
+    cv2.putText(
+        f,
+        timer_txt,
+        (x1 + 12, y1 + 62),
+        cv2.FONT_HERSHEY_DUPLEX,
+        0.98,
+        color,
+        2,
+        cv2.LINE_AA,
+    )
 
 
 def desenhar_frame(frame_base):
@@ -847,8 +930,8 @@ def desenhar_frame(frame_base):
     # Timer/status oficial dentro do vídeo
     desenhar_timer_oficial_video(f)
 
+    desenhar_tempo_no_video(f)
     return f
-
 # ============================================================
 #  Leitura de frames (câmera)
 # ============================================================
