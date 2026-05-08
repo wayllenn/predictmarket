@@ -462,10 +462,20 @@ app = criar_flask_app()
 
 def _api_thread():
     if not _FLASK_OK:
+        print("❌ Flask não disponível. Instale: pip install flask flask-cors")
         return
-    # Não iniciamos o Flask aqui porque o Gunicorn ou o script principal já vai rodar.
-    # Mantemos apenas para compatibilidade.
-    pass
+
+    import logging
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
+
+    print(f"🌐 API Flask iniciando em http://0.0.0.0:{API_PORT}")
+    app.run(
+        host="0.0.0.0",
+        port=API_PORT,
+        debug=False,
+        threaded=True,
+        use_reloader=False
+    )
 
 # ============================================================
 #  RTMP STREAMING (FFmpeg)
