@@ -677,126 +677,146 @@ def enviar_rtmp(frame):
 
 def desenhar_tela_transicao():
     """
-    Tela limpa enviada para o YouTube durante o cutoff entre rodadas.
-    Mostra BLANK/LOGO + resultado anterior + próxima linha antes de iniciar a nova rodada.
+    Tela preta oficial entre rodadas, sem logo.
+    Mostra countdown grande avisando que a próxima rodada vai começar.
     """
     f = np.zeros((ALTURA, LARGURA, 3), dtype=np.uint8)
+    f[:] = (0, 0, 0)
 
-    # Fundo premium escuro
-    f[:] = (6, 8, 12)
+    remaining = max(0, int(round(pausa_ate - time.time()))) if pausa_ate else 0
+    next_line = proxima_meta_pendente
 
-    # Gradiente/glow central
-    overlay = f.copy()
-    cv2.circle(overlay, (LARGURA // 2, ALTURA // 2), 210, (16, 36, 10), -1)
-    cv2.circle(overlay, (LARGURA // 2, ALTURA // 2), 95, (35, 55, 12), -1)
-    cv2.addWeighted(overlay, 0.50, f, 0.50, 0, f)
+    # Borda discreta
+    cv2.rectangle(f, (28, 28), (LARGURA - 28, ALTURA - 28), (55, 55, 55), 2)
 
-    # Barras estilo broadcast
-    cv2.rectangle(f, (0, 0), (LARGURA, 46), (3, 5, 8), -1)
-    cv2.rectangle(f, (0, ALTURA - 46), (LARGURA, ALTURA), (3, 5, 8), -1)
-    cv2.rectangle(f, (22, 22), (LARGURA - 22, ALTURA - 22), (45, 75, 28), 2)
-
-    # Selo/live
-    cv2.circle(f, (54, 34), 6, (40, 40, 255), -1)
-    cv2.putText(f, "LIVE ROUND RESET", (70, 39), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (220, 225, 220), 1, cv2.LINE_AA)
-
-    # Logo / brand central
-    brand = TEXTO_BRAND_TRANSICAO
-    (tw, th), _ = cv2.getTextSize(brand, cv2.FONT_HERSHEY_DUPLEX, 1.35, 2)
+    # Título
+    title = "NEXT ROUND STARTS IN"
+    (tw, th), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_SIMPLEX, 0.82, 2)
     cv2.putText(
-        f, brand,
-        ((LARGURA - tw) // 2, 95),
+        f,
+        title,
+        ((LARGURA - tw) // 2, 105),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.82,
+        (235, 235, 235),
+        2,
+        cv2.LINE_AA
+    )
+
+    # Countdown grande
+    countdown = str(remaining)
+    (cw, ch), _ = cv2.getTextSize(countdown, cv2.FONT_HERSHEY_DUPLEX, 3.4, 6)
+    cv2.putText(
+        f,
+        countdown,
+        ((LARGURA - cw) // 2, 220),
         cv2.FONT_HERSHEY_DUPLEX,
-        1.35,
+        3.4,
+        (255, 210, 31),
+        6,
+        cv2.LINE_AA
+    )
+
+    # Próxima linha
+    if next_line is None:
+        line_txt = "NEXT LINE: CALCULATING"
+    else:
+        line_txt = f"NEXT LINE: {next_line}"
+
+    (lw, lh), _ = cv2.getTextSize(line_txt, cv2.FONT_HERSHEY_SIMPLEX, 0.72, 2)
+    cv2.putText(
+        f,
+        line_txt,
+        ((LARGURA - lw) // 2, 275),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.72,
         (200, 241, 53),
         2,
         cv2.LINE_AA
     )
 
-    # Subtítulo
-    subtitle = "AI TRAFFIC FLOW MARKET"
-    (stw, sth), _ = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
-    cv2.putText(
-        f, subtitle,
-        ((LARGURA - stw) // 2, 123),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.48,
-        (145, 165, 135),
-        1,
-        cv2.LINE_AA
-    )
-
-    # Resultado da rodada anterior
+    # Resultado anterior no rodapé
     count = resultado_dados.get("contagem", total_contado) if isinstance(resultado_dados, dict) else total_contado
     line = resultado_dados.get("meta", meta_rodada_atual) if isinstance(resultado_dados, dict) else meta_rodada_atual
     passou = resultado_dados.get("passou") if isinstance(resultado_dados, dict) else None
 
-    if line is None:
-        result_txt = f"ROUND COMPLETE  ·  VEHICLES {count}"
-        result_color = (245, 245, 245)
-    else:
+    if line is not None:
         winner = "OVER" if passou else "UNDER"
-        result_txt = f"{winner}  ·  VEHICLES {count} / LINE {line}"
-        result_color = (60, 220, 90) if passou else (90, 115, 255)
-
-    # Caixa do resultado
-    cv2.rectangle(f, (55, 145), (LARGURA - 55, 205), (10, 15, 18), -1)
-    cv2.rectangle(f, (55, 145), (LARGURA - 55, 205), (55, 80, 40), 1)
-
-    (rw, rh), _ = cv2.getTextSize(result_txt, cv2.FONT_HERSHEY_SIMPLEX, 0.78, 2)
-    cv2.putText(
-        f, result_txt,
-        ((LARGURA - rw) // 2, 184),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.78,
-        result_color,
-        2,
-        cv2.LINE_AA
-    )
-
-    # Próxima rodada/linha
-    next_line = proxima_meta_pendente
-    if next_line is None:
-        next_txt = "NEXT LINE: CALCULATING"
+        footer = f"LAST RESULT: {winner} · VEHICLES {count} / LINE {line}"
     else:
-        next_txt = f"NEXT LINE: {next_line}"
+        footer = f"LAST ROUND COMPLETE · VEHICLES {count}"
 
-    remaining = max(0, int(round(pausa_ate - time.time()))) if pausa_ate else 0
-    sub = f"{TEXTO_SUB_TRANSICAO}  {remaining}s"
-
-    (nw, nh), _ = cv2.getTextSize(next_txt, cv2.FONT_HERSHEY_SIMPLEX, 0.68, 2)
+    (fw, fh), _ = cv2.getTextSize(footer, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
     cv2.putText(
-        f, next_txt,
-        ((LARGURA - nw) // 2, 246),
+        f,
+        footer,
+        ((LARGURA - fw) // 2, ALTURA - 42),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.68,
-        (255, 210, 31),
-        2,
-        cv2.LINE_AA
-    )
-
-    (sw, sh), _ = cv2.getTextSize(sub, cv2.FONT_HERSHEY_SIMPLEX, 0.54, 1)
-    cv2.putText(
-        f, sub,
-        ((LARGURA - sw) // 2, 280),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.54,
-        (215, 225, 210),
+        0.48,
+        (165, 165, 165),
         1,
         cv2.LINE_AA
     )
 
-    # Barra de progresso do cutoff de 7 segundos
-    total_pause = max(1, PAUSA_ENTRE_RODADAS)
-    progress = 1.0 - (remaining / total_pause)
-    progress = max(0.0, min(1.0, progress))
-    bar_x1, bar_y1 = 140, 310
-    bar_x2, bar_y2 = LARGURA - 140, 321
-    cv2.rectangle(f, (bar_x1, bar_y1), (bar_x2, bar_y2), (30, 38, 42), -1)
-    cv2.rectangle(f, (bar_x1, bar_y1), (int(bar_x1 + (bar_x2 - bar_x1) * progress), bar_y2), (200, 241, 53), -1)
-    cv2.rectangle(f, (bar_x1, bar_y1), (bar_x2, bar_y2), (90, 110, 90), 1)
-
     return f
+
+
+def desenhar_timer_oficial_video(f):
+    """
+    Timer/status oficial queimado no vídeo.
+    Como ele vai dentro do vídeo do YouTube, ele fica sincronizado com o que o usuário vê.
+    """
+    agora = time.time()
+    elapsed = agora - tempo_rodada_inicio
+
+    # A fase visual deve seguir a mesma lógica da API.
+    phase = _api_phase(elapsed)
+    ends = max(0, int(round(_api_ends_in(elapsed, phase))))
+
+    if phase == "bet":
+        title = "PREDICT OPEN"
+        value = fmt_segundos_video(ends)
+        color = (70, 230, 110)
+    elif phase == "counting":
+        title = "COUNTING"
+        value = fmt_segundos_video(ends)
+        color = (200, 241, 53)
+    elif phase == "result":
+        title = "FINAL RESULT"
+        value = fmt_segundos_video(ends)
+        color = (255, 210, 31)
+    else:
+        title = "NEXT ROUND"
+        remaining = max(0, int(round(pausa_ate - time.time()))) if rodada_em_pausa else ends
+        value = fmt_segundos_video(remaining)
+        color = (255, 210, 31)
+
+    # Card superior direito
+    x1 = LARGURA - 218
+    y1 = 14
+    x2 = LARGURA - 14
+    y2 = 82
+
+    overlay = f.copy()
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), (5, 8, 10), -1)
+    cv2.addWeighted(overlay, 0.72, f, 0.28, 0, f)
+    cv2.rectangle(f, (x1, y1), (x2, y2), (55, 75, 45), 1)
+
+    cv2.putText(f, title, (x1 + 12, y1 + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (210, 220, 210), 1, cv2.LINE_AA)
+    cv2.putText(f, value, (x1 + 12, y1 + 58), cv2.FONT_HERSHEY_DUPLEX, 0.92, color, 2, cv2.LINE_AA)
+
+    # Barra de progresso da fase
+    total = _API_BET if phase == "bet" else (_API_COUNT if phase == "counting" else (_API_RESULT if phase == "result" else _API_PAUSE))
+    progress = 1.0 - (ends / max(1, total))
+    progress = max(0.0, min(1.0, progress))
+    bx1, by1, bx2, by2 = x1 + 12, y2 - 10, x2 - 12, y2 - 5
+    cv2.rectangle(f, (bx1, by1), (bx2, by2), (35, 42, 45), -1)
+    cv2.rectangle(f, (bx1, by1), (int(bx1 + (bx2 - bx1) * progress), by2), color, -1)
+
+
+def fmt_segundos_video(sec):
+    sec = max(0, int(sec))
+    return f"{sec // 60:02d}:{sec % 60:02d}"
 
 
 def desenhar_frame(frame_base):
@@ -804,21 +824,29 @@ def desenhar_frame(frame_base):
         return desenhar_tela_transicao()
 
     f = frame_base.copy()
+
     # Zona continua ativa para a contagem, mas fica invisível no vídeo/YouTube.
     if USAR_ZONA and MOSTRAR_ZONA_NO_VIDEO:
         cv2.circle(f, (zona["cx"], zona["cy"]), zona["r"], (0, 0, 0), 3)
         cv2.circle(f, (zona["cx"], zona["cy"]), zona["r"], (255, 120, 0), 2)
+
     # Linha de contagem configurada
-    cv2.line(f, (linha["x1"],linha["y1"]), (linha["x2"],linha["y2"]), (0,0,0), 6)
-    cv2.line(f, (linha["x1"],linha["y1"]), (linha["x2"],linha["y2"]), (0,255,255), 3)
-    # Contador de carros
+    cv2.line(f, (linha["x1"], linha["y1"]), (linha["x2"], linha["y2"]), (0, 0, 0), 6)
+    cv2.line(f, (linha["x1"], linha["y1"]), (linha["x2"], linha["y2"]), (0, 255, 255), 3)
+
+    # Contador oficial no vídeo
     label = f"VEHICLES {total_contado}"
-    cv2.putText(f, label, (15, ALTURA-18), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 3, cv2.LINE_AA)
-    cv2.putText(f, label, (14, ALTURA-19), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv2.LINE_AA)
+    cv2.putText(f, label, (15, ALTURA - 18), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, cv2.LINE_AA)
+    cv2.putText(f, label, (14, ALTURA - 19), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
+
     if meta_rodada_atual:
         meta_txt = f"LINE {meta_rodada_atual}"
-        cv2.putText(f, meta_txt, (15, ALTURA-45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,0), 2, cv2.LINE_AA)
-        cv2.putText(f, meta_txt, (14, ALTURA-46), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,200,0), 1, cv2.LINE_AA)
+        cv2.putText(f, meta_txt, (15, ALTURA - 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(f, meta_txt, (14, ALTURA - 46), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 200, 0), 1, cv2.LINE_AA)
+
+    # Timer/status oficial dentro do vídeo
+    desenhar_timer_oficial_video(f)
+
     return f
 
 # ============================================================
