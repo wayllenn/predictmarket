@@ -80,18 +80,44 @@ zona  = {"cx": 320, "cy": 180, "r": 500}
 
 # Jogo
 INTERVALO_RESET     = 90
-PAUSA_ENTRE_RODADAS = 5
+PAUSA_ENTRE_RODADAS = 7
 META_INICIAL        = None
+
+# Durante a pausa entre rodadas, mostra uma tela limpa no YouTube
+# antes de revelar a nova linha/meta.
+MOSTRAR_TELA_TRANSICAO = True
+TEXTO_BRAND_TRANSICAO = "PredictMarket"
+TEXTO_SUB_TRANSICAO = "NEXT ROUND STARTING..."
+
 
 # API
 API_PORT     = 8080
-STATUS_DELAY = 2.0
+
+# Atraso para sincronizar a API com o player do YouTube.
+# Ajuste esse valor conforme o atraso real da live no navegador.
+# Comece com 12.0; se a API ainda estiver adiantada, aumente.
+YOUTUBE_SYNC_DELAY_SECONDS = 12.0
+STATUS_HISTORY_MAXLEN = 1200
+
+# Vídeo para o HTML via Flask/MJPEG.
+# Isso é separado do RTMP do YouTube.
+WEB_STREAM_FPS = 12
+WEB_JPEG_QUALITY = 75
+ultimo_jpeg_web = None
+jpeg_lock = threading.Lock()
 
 _API_BET    = 30
 _API_COUNT  = 60
 _API_RESULT = 5
 _API_PAUSE  = 5
 _API_TOTAL  = _API_BET + _API_COUNT + _API_RESULT + _API_PAUSE
+
+# Permite ajustar sem editar o arquivo:
+# YOUTUBE_SYNC_DELAY_SECONDS=18 python arquivo.py
+try:
+    YOUTUBE_SYNC_DELAY_SECONDS = float(os.environ.get("YOUTUBE_SYNC_DELAY_SECONDS", YOUTUBE_SYNC_DELAY_SECONDS))
+except Exception:
+    pass
 
 # ============================================================
 #  Carregar configs (opcional – se arquivos existirem)
@@ -205,11 +231,18 @@ proxima_meta_pendente = None
 ultimo_debug_meta= {}
 fps_calculado    = 0.0
 
-status_history   = deque(maxlen=500)
+status_history = deque(maxlen=STATUS_HISTORY_MAXLEN)
 ultimo_status_write = 0.0
 
 # ============================================================
-#  Meta adaptativa (código original, não modifiquei)
+#  META ADAPTATIVA AVANÇADA — VERSÃO QUE FICOU BOA/PERFEITA
+#  Mantém OVER/UNDER mais equilibrado usando:
+#  - mediana do fluxo recente
+#  - ajuste 50/50
+#  - correção quando OVER bate cedo
+#  - anti-sequência
+#  - tendência aleatória controlada
+#  - teto adaptativo
 # ============================================================
 import random, statistics
 
@@ -348,7 +381,7 @@ def _api_ends_in(elapsed,phase):
          "result": _API_BET+_API_COUNT+_API_RESULT, "pause": _API_TOTAL}
     return round(b[phase] - d, 1)
 
-def _api_status():
+def _api_status_now():
     now = time.time()
     elapsed = now - tempo_rodada_inicio
     phase = _api_phase(elapsed)
@@ -404,11 +437,56 @@ def _api_status():
         "meta_debug": ultimo_debug_meta if isinstance(ultimo_debug_meta, dict) else {},
         "result": result,
         "history": history,
-        "camera": {"fps": round(fps_calculado, 1), "online": True},
+        "camera": {
+            "fps": round(fps_calculado, 1),
+            "online": True,
+            "video_feed": "/video_feed",
+            "snapshot": "/snapshot.jpg",
+        },
         "payout": 1.9,
         "rake_pct": 0.10,
         "server_time": now,
     }
+
+
+def _api_status():
+    """
+    Retorna o status atrasado para sincronizar com o delay do YouTube.
+
+    O contador interno continua em tempo real.
+    O HTML recebe um snapshot antigo, parecido com o frame que o usuário está vendo
+    no player do YouTube.
+    """
+    now = time.time()
+    current = _api_status_now()
+
+    # Guarda snapshot atual.
+    status_history.append((now, current))
+
+    target_time = now - YOUTUBE_SYNC_DELAY_SECONDS
+    chosen = None
+
+    # Pega o snapshot mais próximo antes do alvo.
+    for ts, snap in reversed(status_history):
+        if ts <= target_time:
+            chosen = snap
+            break
+
+    # Se ainda não tem histórico suficiente, usa o mais antigo disponível.
+    if chosen is None and status_history:
+        chosen = status_history[0][1]
+
+    if chosen is None:
+        chosen = current
+
+    delayed = dict(chosen)
+    delayed["server_time"] = now
+    delayed["sync"] = {
+        "youtube_delay_seconds": YOUTUBE_SYNC_DELAY_SECONDS,
+        "mode": "delayed_api_to_match_youtube_player"
+    }
+    return delayed
+
 
 def criar_flask_app():
     app = Flask(__name__)
@@ -447,6 +525,47 @@ def criar_flask_app():
     def health():
         return jsonify({"status": "ok", "cars": total_contado, "fps": round(fps_calculado,1)})
 
+    @app.route("/snapshot.jpg")
+    def snapshot_jpg():
+        from flask import Response
+        with jpeg_lock:
+            frame_bytes = ultimo_jpeg_web
+        if frame_bytes is None:
+            return Response("No frame yet", status=503)
+        return Response(
+            frame_bytes,
+            mimetype="image/jpeg",
+            headers={
+                "Cache-Control": "no-cache,no-store",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
+    @app.route("/video_feed")
+    def video_feed():
+        from flask import Response
+
+        boundary = b"--frame\r\nContent-Type: image/jpeg\r\nCache-Control: no-cache\r\n\r\n"
+        delay = 1.0 / max(1, WEB_STREAM_FPS)
+
+        def gerar():
+            while True:
+                with jpeg_lock:
+                    frame_bytes = ultimo_jpeg_web
+                if frame_bytes is not None:
+                    yield boundary + frame_bytes + b"\r\n"
+                time.sleep(delay)
+
+        return Response(
+            gerar(),
+            mimetype="multipart/x-mixed-replace; boundary=frame",
+            headers={
+                "Cache-Control": "no-cache,no-store",
+                "Access-Control-Allow-Origin": "*",
+                "ngrok-skip-browser-warning": "1",
+            },
+        )
+
     @app.route("/")
     def index():
         from flask import send_file
@@ -454,7 +573,24 @@ def criar_flask_app():
             html_path = os.path.join(folder, "predictmarket.html")
             if os.path.exists(html_path):
                 return send_file(html_path)
-        return "<h1>PredictMarket API</h1><p>Use /status for data</p>", 200
+        return """
+        <html>
+          <head>
+            <title>PredictMarket API</title>
+            <style>
+              body { background:#111; color:white; font-family:Arial; margin:20px; }
+              img { max-width:100%; border:2px solid #333; border-radius:12px; }
+              a { color:#00e5ff; }
+            </style>
+          </head>
+          <body>
+            <h1>PredictMarket API</h1>
+            <p>Status: <a href="/status">/status</a></p>
+            <p>Vídeo MJPEG: <a href="/video_feed">/video_feed</a></p>
+            <img src="/video_feed" />
+          </body>
+        </html>
+        """, 200
 
     return app
 
@@ -539,7 +675,134 @@ def enviar_rtmp(frame):
                 pass
             rtmp_proc = iniciar_rtmp()
 
+def desenhar_tela_transicao():
+    """
+    Tela limpa enviada para o YouTube durante o cutoff entre rodadas.
+    Mostra BLANK/LOGO + resultado anterior + próxima linha antes de iniciar a nova rodada.
+    """
+    f = np.zeros((ALTURA, LARGURA, 3), dtype=np.uint8)
+
+    # Fundo premium escuro
+    f[:] = (6, 8, 12)
+
+    # Gradiente/glow central
+    overlay = f.copy()
+    cv2.circle(overlay, (LARGURA // 2, ALTURA // 2), 210, (16, 36, 10), -1)
+    cv2.circle(overlay, (LARGURA // 2, ALTURA // 2), 95, (35, 55, 12), -1)
+    cv2.addWeighted(overlay, 0.50, f, 0.50, 0, f)
+
+    # Barras estilo broadcast
+    cv2.rectangle(f, (0, 0), (LARGURA, 46), (3, 5, 8), -1)
+    cv2.rectangle(f, (0, ALTURA - 46), (LARGURA, ALTURA), (3, 5, 8), -1)
+    cv2.rectangle(f, (22, 22), (LARGURA - 22, ALTURA - 22), (45, 75, 28), 2)
+
+    # Selo/live
+    cv2.circle(f, (54, 34), 6, (40, 40, 255), -1)
+    cv2.putText(f, "LIVE ROUND RESET", (70, 39), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (220, 225, 220), 1, cv2.LINE_AA)
+
+    # Logo / brand central
+    brand = TEXTO_BRAND_TRANSICAO
+    (tw, th), _ = cv2.getTextSize(brand, cv2.FONT_HERSHEY_DUPLEX, 1.35, 2)
+    cv2.putText(
+        f, brand,
+        ((LARGURA - tw) // 2, 95),
+        cv2.FONT_HERSHEY_DUPLEX,
+        1.35,
+        (200, 241, 53),
+        2,
+        cv2.LINE_AA
+    )
+
+    # Subtítulo
+    subtitle = "AI TRAFFIC FLOW MARKET"
+    (stw, sth), _ = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
+    cv2.putText(
+        f, subtitle,
+        ((LARGURA - stw) // 2, 123),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.48,
+        (145, 165, 135),
+        1,
+        cv2.LINE_AA
+    )
+
+    # Resultado da rodada anterior
+    count = resultado_dados.get("contagem", total_contado) if isinstance(resultado_dados, dict) else total_contado
+    line = resultado_dados.get("meta", meta_rodada_atual) if isinstance(resultado_dados, dict) else meta_rodada_atual
+    passou = resultado_dados.get("passou") if isinstance(resultado_dados, dict) else None
+
+    if line is None:
+        result_txt = f"ROUND COMPLETE  ·  VEHICLES {count}"
+        result_color = (245, 245, 245)
+    else:
+        winner = "OVER" if passou else "UNDER"
+        result_txt = f"{winner}  ·  VEHICLES {count} / LINE {line}"
+        result_color = (60, 220, 90) if passou else (90, 115, 255)
+
+    # Caixa do resultado
+    cv2.rectangle(f, (55, 145), (LARGURA - 55, 205), (10, 15, 18), -1)
+    cv2.rectangle(f, (55, 145), (LARGURA - 55, 205), (55, 80, 40), 1)
+
+    (rw, rh), _ = cv2.getTextSize(result_txt, cv2.FONT_HERSHEY_SIMPLEX, 0.78, 2)
+    cv2.putText(
+        f, result_txt,
+        ((LARGURA - rw) // 2, 184),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.78,
+        result_color,
+        2,
+        cv2.LINE_AA
+    )
+
+    # Próxima rodada/linha
+    next_line = proxima_meta_pendente
+    if next_line is None:
+        next_txt = "NEXT LINE: CALCULATING"
+    else:
+        next_txt = f"NEXT LINE: {next_line}"
+
+    remaining = max(0, int(round(pausa_ate - time.time()))) if pausa_ate else 0
+    sub = f"{TEXTO_SUB_TRANSICAO}  {remaining}s"
+
+    (nw, nh), _ = cv2.getTextSize(next_txt, cv2.FONT_HERSHEY_SIMPLEX, 0.68, 2)
+    cv2.putText(
+        f, next_txt,
+        ((LARGURA - nw) // 2, 246),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.68,
+        (255, 210, 31),
+        2,
+        cv2.LINE_AA
+    )
+
+    (sw, sh), _ = cv2.getTextSize(sub, cv2.FONT_HERSHEY_SIMPLEX, 0.54, 1)
+    cv2.putText(
+        f, sub,
+        ((LARGURA - sw) // 2, 280),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.54,
+        (215, 225, 210),
+        1,
+        cv2.LINE_AA
+    )
+
+    # Barra de progresso do cutoff de 7 segundos
+    total_pause = max(1, PAUSA_ENTRE_RODADAS)
+    progress = 1.0 - (remaining / total_pause)
+    progress = max(0.0, min(1.0, progress))
+    bar_x1, bar_y1 = 140, 310
+    bar_x2, bar_y2 = LARGURA - 140, 321
+    cv2.rectangle(f, (bar_x1, bar_y1), (bar_x2, bar_y2), (30, 38, 42), -1)
+    cv2.rectangle(f, (bar_x1, bar_y1), (int(bar_x1 + (bar_x2 - bar_x1) * progress), bar_y2), (200, 241, 53), -1)
+    cv2.rectangle(f, (bar_x1, bar_y1), (bar_x2, bar_y2), (90, 110, 90), 1)
+
+    return f
+
+
 def desenhar_frame(frame_base):
+    if MOSTRAR_TELA_TRANSICAO and rodada_em_pausa:
+        return desenhar_tela_transicao()
+
     f = frame_base.copy()
     # Zona continua ativa para a contagem, mas fica invisível no vídeo/YouTube.
     if USAR_ZONA and MOSTRAR_ZONA_NO_VIDEO:
@@ -549,7 +812,7 @@ def desenhar_frame(frame_base):
     cv2.line(f, (linha["x1"],linha["y1"]), (linha["x2"],linha["y2"]), (0,0,0), 6)
     cv2.line(f, (linha["x1"],linha["y1"]), (linha["x2"],linha["y2"]), (0,255,255), 3)
     # Contador de carros
-    label = f"CARS {total_contado}"
+    label = f"VEHICLES {total_contado}"
     cv2.putText(f, label, (15, ALTURA-18), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 3, cv2.LINE_AA)
     cv2.putText(f, label, (14, ALTURA-19), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv2.LINE_AA)
     if meta_rodada_atual:
@@ -692,7 +955,10 @@ while True:
         print(f"⏱️  Rodada #{len(historico_rodadas)}: {total_contado}/{meta_rodada_atual} "
               f"{'OVER ✅' if passou else 'UNDER ❌'} | tempo={td:.1f}s | proxima={pm}")
         if pm and ultimo_debug_meta:
-            print(f"🧠 base={ultimo_debug_meta.get('base')} | "
+            print(f"🧠 META AVANÇADA | base={ultimo_debug_meta.get('base')} | "
+                  f"taxa_over={ultimo_debug_meta.get('taxa_over')} | "
+                  f"seq={ultimo_debug_meta.get('sequencia_lado')}:{ultimo_debug_meta.get('sequencia_tamanho')} | "
+                  f"tend={ultimo_debug_meta.get('tendencia')} | "
                   f"teto={ultimo_debug_meta.get('teto_adaptativo')} | "
                   f"final={ultimo_debug_meta.get('meta_final')}")
         rodada_em_pausa = True
@@ -743,8 +1009,24 @@ while True:
                     del hist_pos[tid]
                     del frames_sem_ver[tid]
 
-    # Preparar frame com overlay e enviar para RTMP
+    # Preparar frame com overlay
     frame_out = desenhar_frame(frame_base)
+
+    # Atualiza o frame usado pelo HTML em /video_feed e /snapshot.jpg
+    try:
+        frame_web = cv2.resize(frame_out, (STREAM_WIDTH, STREAM_HEIGHT))
+        ok_jpg, buf = cv2.imencode(
+            ".jpg",
+            frame_web,
+            [cv2.IMWRITE_JPEG_QUALITY, WEB_JPEG_QUALITY]
+        )
+        if ok_jpg:
+            with jpeg_lock:
+                ultimo_jpeg_web = buf.tobytes()
+    except Exception as e:
+        pass
+
+    # Envia para RTMP/YouTube
     enviar_rtmp(frame_out)
 
 # Cleanup (nunca alcançado, mas mantido)
