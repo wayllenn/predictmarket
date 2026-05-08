@@ -1191,7 +1191,7 @@ setInterval(()=>{
 Object.keys(markets).forEach(m=>updateLiq(m));
 
 // ── MASSPIKE API ──
-const API = '';  // static mode: Nginx/python http.server serves /hls and /status.json
+const API = window.location.origin;  // static mode: Nginx/python http.server serves /hls and /status.json
 let lastPhase = '';
 let frameErrors = 0;
 let currentYoloLine = null;
