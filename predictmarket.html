@@ -442,7 +442,7 @@ iframe.yolo-video-media{border:0;}
     <div style="width:1px;height:16px;background:var(--border)"></div>
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:10px;color:var(--muted);font-weight:700">Result:</span>
-      <span style="font-family:JetBrains Mono;font-size:14px;font-weight:800;color:var(--accent)" id="roundResultMini">WAITING</span>
+      <span style="font-family:JetBrains Mono;font-size:14px;font-weight:800;color:var(--accent)" id="roundResultMini">IN PROGRESS</span>
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:16px;padding:3px 8px">
       <div class="live-dot"></div>
@@ -936,7 +936,7 @@ function updateMiniRoundResult(data){
     el.textContent = 'COUNTING';
     el.style.color = 'var(--accent)';
   } else {
-    el.textContent = 'WAITING';
+    el.textContent = 'IN PROGRESS';
     el.style.color = 'var(--accent)';
   }
 }
