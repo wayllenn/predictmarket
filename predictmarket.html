@@ -421,7 +421,7 @@ iframe.yolo-video-media{border:0;}
     <iframe
       id="yoloVideo"
       class="yolo-video-media"
-      src="https://www.youtube.com/embed/A7YBiys3DeU?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&live=1&v=20260508172837"
+      src="https://www.youtube.com/embed/A9TxlSpZeqI?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&live=1&v=20260508173807"
       title="PredictMarket Live Stream"
       frameborder="0"
       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -1505,11 +1505,62 @@ window.addEventListener('load', ()=>{
 
 </script>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
+/*
+  Força o embed do YouTube a sair do DVR antigo e ir para o live edge.
+  Isso resolve caso o HTML mostre "VEHICLES" antigo enquanto o YouTube direto já mostra "VEHICLES" + timer.
+*/
+let yoloYTPlayer = null;
+let yoloLiveSeekAttempts = 0;
+
+function jumpYoloToLiveEdge() {
+  if (!yoloYTPlayer || typeof yoloYTPlayer.getDuration !== 'function') return;
+
+  try {
+    const duration = yoloYTPlayer.getDuration();
+    if (duration && isFinite(duration) && duration > 0) {
+      // Em live com DVR, duration costuma representar a borda mais recente.
+      yoloYTPlayer.seekTo(Math.max(0, duration - 1), true);
+      yoloYTPlayer.playVideo();
+    }
+  } catch (e) {}
+}
+
+function onYouTubeIframeAPIReady() {
+  yoloYTPlayer = new YT.Player('yoloVideo', {
+    events: {
+      onReady: function(event) {
+        try {
+          event.target.mute();
+          event.target.playVideo();
+        } catch(e) {}
+
+        // Tenta várias vezes porque o duration da live pode demorar a ficar disponível.
+        const timer = setInterval(function() {
+          yoloLiveSeekAttempts += 1;
+          jumpYoloToLiveEdge();
+
+          if (yoloLiveSeekAttempts >= 12) {
+            clearInterval(timer);
+          }
+        }, 1500);
+      },
+      onStateChange: function(event) {
+        // Se pausar/bufferizar, tenta voltar para o live edge.
+        if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.BUFFERING) {
+          setTimeout(jumpYoloToLiveEdge, 1000);
+        }
+      }
+    }
+  });
+}
+
+// Também força reload fresco do src para evitar cache do navegador.
 (function forceFreshYoutubeEmbed(){
   const iframe = document.getElementById('yoloVideo');
   if (!iframe) return;
-  const base = "https://www.youtube.com/embed/A7YBiys3DeU";
+  const base = "https://www.youtube.com/embed/A9TxlSpZeqI";
   const params = new URLSearchParams({
     autoplay: "1",
     mute: "1",
@@ -1518,7 +1569,7 @@ window.addEventListener('load', ()=>{
     modestbranding: "1",
     enablejsapi: "1",
     live: "1",
-    v: "20260508172837"
+    v: "20260508173807"
   });
   iframe.src = base + "?" + params.toString();
 })();
