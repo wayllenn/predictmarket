@@ -318,6 +318,26 @@ iframe.yolo-video-media{border:0;}
   from{transform:translateX(0)}
   to{transform:translateX(-50%)}
 }
+
+
+/* TARGET / ROUND STATUS PATCH */
+#metaDisplay{color:var(--gold);}
+#featTimer{white-space:nowrap;}
+.round-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 7px;
+  border-radius:999px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  font-weight:800;
+  border:1px solid rgba(200,241,53,.18);
+  background:rgba(200,241,53,.06);
+}
+.round-pill.over{color:var(--green);border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.08)}
+.round-pill.under{color:var(--red);border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.08)}
+
 </style>
 <!-- HLS.js for processed server HLS stream -->
 </head>
@@ -436,7 +456,7 @@ iframe.yolo-video-media{border:0;}
   <!-- Stats below video — sem contador ao vivo fora do vídeo -->
   <div style="display:flex;align-items:center;padding:7px 14px;border-top:1px solid var(--border);gap:14px">
     <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--muted);font-weight:700">Line:</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:700">Target:</span>
       <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--gold)" id="metaDisplay">--</span>
     </div>
     <div style="width:1px;height:16px;background:var(--border)"></div>
@@ -452,7 +472,7 @@ iframe.yolo-video-media{border:0;}
   <div class="feat-body">
     <div class="feat-meta">
       <span class="feat-tag">🚗 Traffic Flow</span>
-      <span class="feat-tag">1m 30s rounds</span>
+      <span class="feat-tag" id="roundDurationTag">90s rounds</span>
     </div>
     <!-- Last 5 rounds history -->
     <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
@@ -519,7 +539,7 @@ iframe.yolo-video-media{border:0;}
     </div>
 
     <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;background:rgba(200,241,53,.045);border:1px solid rgba(200,241,53,.12);border-radius:10px;padding:8px 12px">
-      <span style="font-size:11px;color:var(--sub);font-weight:700">Round</span>
+      <span style="font-size:11px;color:var(--sub);font-weight:700" id="roundLabel">Round starts in</span>
       <span style="font-family:JetBrains Mono;font-size:13px;font-weight:800;color:var(--accent)" id="featTimer">IN PROGRESS</span>
       <span style="display:none" id="betWindow">CHECK STATUS</span>
     </div>
@@ -548,7 +568,7 @@ iframe.yolo-video-media{border:0;}
       <span class="liq-wait-ico">⏳</span>
       <div class="liq-wait-info">
         <div class="liq-wait-title">Waiting for match</div>
-        <div class="liq-wait-sub" id="yoloWaitSub">Predict the opposite side for instant match</div>
+        <div class="liq-wait-sub" id="yoloWaitSub">Choose the opposite side for instant match</div>
       </div>
       <div class="liq-wait-amt">
         <span class="liq-wait-val" id="yoloWait">62.8</span>
@@ -912,6 +932,188 @@ iframe.yolo-video-media{border:0;}
   <button class="nav-item"><span class="nav-icon">💎</span><span class="nav-label">Wallet</span></button>
   <button class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></button>
 </div>
+
+
+<script>
+// ============================================================
+// PredictMarket Target + Rounds patch
+// Reads /status.json from the Python server and updates Target,
+// OVER/UNDER labels, result, timer and last rounds.
+// ============================================================
+const API_URL = window.PREDICT_API_URL || "/status.json";
+let lastYoloStatus = null;
+
+function fmtSeconds(sec){
+  sec = Math.max(0, Math.ceil(Number(sec || 0)));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function getTargetPayload(data){
+  return data?.target || data?.line || {};
+}
+
+function getTargetValue(data){
+  const target = getTargetPayload(data);
+  const value = target?.value;
+  if(value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function setText(id, text){
+  const el = document.getElementById(id);
+  if(el) el.textContent = text;
+}
+
+function updateTargetLabels(data){
+  const value = getTargetValue(data);
+  if(value === null){
+    setText("metaDisplay", "--");
+    setText("quickOverLabel", "OVER --");
+    setText("quickUnderLabel", "UNDER --");
+    setText("yoloOverBookLabel", "📈 OVER --");
+    setText("yoloUnderBookLabel", "UNDER -- 📉");
+    return;
+  }
+
+  const target = Math.round(value);
+  setText("metaDisplay", target);
+  setText("quickOverLabel", `OVER ${target + 1}+`);
+  setText("quickUnderLabel", `UNDER ≤ ${target}`);
+  setText("yoloOverBookLabel", `📈 OVER ${target + 1}+`);
+  setText("yoloUnderBookLabel", `UNDER ≤ ${target} 📉`);
+
+  const q = document.getElementById("yoloQuestion");
+  if(q) q.textContent = `🔴 LIVE · Will more than ${target} vehicles pass in 90s?`;
+}
+
+function updateRoundStatus(data){
+  const phase = data?.phase || "counting";
+  const left = fmtSeconds(data?.phase_ends_in || 0);
+  const timer = document.getElementById("featTimer");
+  const label = document.getElementById("roundLabel");
+  const resultMini = document.getElementById("roundResultMini");
+  const closed = document.getElementById("betClosedBanner");
+
+  if(phase === "bet"){
+    if(label) label.textContent = "Round starts in";
+    if(timer) timer.textContent = left;
+    if(resultMini) resultMini.textContent = "PREDICTIONS OPEN";
+    if(closed) closed.style.display = "none";
+  }else if(phase === "counting"){
+    if(label) label.textContent = "Counting";
+    if(timer) timer.textContent = left;
+    if(resultMini) resultMini.textContent = "IN PROGRESS";
+    if(closed) closed.style.display = "block";
+  }else if(phase === "result"){
+    if(label) label.textContent = "Result";
+    if(timer) timer.textContent = "SHOWING RESULT";
+    if(resultMini) resultMini.textContent = data?.result?.winner || "RESULT";
+    if(closed) closed.style.display = "block";
+  }else{
+    if(label) label.textContent = "Next round in";
+    if(timer) timer.textContent = left;
+    if(resultMini) resultMini.textContent = data?.result?.winner || "PAUSED";
+    if(closed) closed.style.display = "block";
+  }
+}
+
+function updateHistory(data){
+  const wrap = document.getElementById("yoloHistory");
+  if(!wrap) return;
+
+  const rows = Array.isArray(data?.history) ? data.history.slice(-5).reverse() : [];
+  if(!rows.length){
+    wrap.innerHTML = '<span style="font-size:10px;color:var(--muted)">No data yet...</span>';
+    return;
+  }
+
+  wrap.innerHTML = rows.map(r => {
+    const winner = String(r.winner || "-").toUpperCase();
+    const cls = winner === "OVER" ? "over" : "under";
+    const target = r.target ?? r.line ?? "--";
+    const count = r.count ?? "--";
+    const round = r.round ?? "";
+    return `<span class="round-pill ${cls}">#${round} ${winner} · ${count}/${target}</span>`;
+  }).join("");
+}
+
+function updatePoolDemo(){
+  // Keeps the liquidity UI alive even when there is no betting backend yet.
+  const a = 72;
+  const b = 28;
+  const bar = document.getElementById("yoloBarA");
+  if(bar) bar.style.width = `${a}%`;
+  setText("yoloPctInA", `${a}%`);
+  setText("yoloPctInB", `${b}%`);
+  setText("yoloPctA", `${a}%`);
+  setText("yoloPctB", `${b}%`);
+}
+
+async function refreshYoloStatus(){
+  try{
+    const res = await fetch(API_URL, {cache:"no-store"});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    lastYoloStatus = data;
+    updateTargetLabels(data);
+    updateRoundStatus(data);
+    updateHistory(data);
+    updatePoolDemo();
+    const offline = document.getElementById("videoOffline");
+    if(offline) offline.style.display = "none";
+  }catch(err){
+    // Keep the page usable when previewing the HTML without the Python server.
+    setText("metaDisplay", "--");
+    const reason = document.getElementById("offlineReason");
+    if(reason) reason.textContent = "Waiting for /status.json from server";
+    updatePoolDemo();
+  }
+}
+
+// Small safe handlers for existing inline onclick attributes.
+function setTab(btn,cat){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.querySelectorAll('[data-cat]').forEach(card=>{
+    card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
+  });
+}
+function toggleFeat(el){ if(el) el.classList.toggle('expanded'); }
+function toggleCard(el){ if(el) el.classList.toggle('expanded'); }
+function selYolo(btn,side){
+  document.querySelectorAll('#quickOverBtn,#quickUnderBtn').forEach(b=>b.classList.remove('sel'));
+  if(btn) btn.classList.add('sel');
+}
+function selYN(btn,side,key){
+  const panel = btn.closest('.bet-panel');
+  if(panel) panel.querySelectorAll('.yn-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+function selVs(btn,side,key){
+  const row = btn.closest('.vs-row');
+  if(row) row.querySelectorAll('.vs-opt').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+function updatePotential(prefix){
+  const input = document.getElementById(prefix+'Input');
+  const display = document.getElementById(prefix+'Display');
+  const pot = document.getElementById(prefix+'Pot');
+  const value = Math.max(1, Number(input?.value || 1));
+  if(input) input.value = value;
+  if(display) display.textContent = value.toFixed(1);
+  if(pot) pot.textContent = (value * 1.9).toFixed(1) + ' TON';
+}
+function quickStake(prefix,value){ const input=document.getElementById(prefix+'Input'); if(input){input.value=value; updatePotential(prefix);} }
+function adjustStake(prefix,delta){ const input=document.getElementById(prefix+'Input'); if(input){input.value=Math.max(1, Number(input.value||1)+delta); updatePotential(prefix);} }
+function inputStake(prefix){ updatePotential(prefix); }
+function confirmBet(){ alert('Prediction confirmed demo. Connect wallet/backend to enable real bets.'); }
+
+refreshYoloStatus();
+setInterval(refreshYoloStatus, 1000);
+</script>
 
 </body>
 </html>
