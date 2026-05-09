@@ -821,19 +821,78 @@ def fmt_segundos_video(sec):
     return f"{sec // 60:02d}:{sec % 60:02d}"
 
 
+
+def draw_text_with_translucent_bg(
+    img,
+    text,
+    x,
+    y,
+    font=cv2.FONT_HERSHEY_SIMPLEX,
+    font_scale=0.9,
+    text_color=(0, 255, 255),
+    thickness=2,
+    bg_color=(0, 0, 0),
+    alpha=0.58,
+    pad_x=12,
+    pad_y=8,
+    border_color=None,
+):
+    """
+    Desenha texto com fundo preto semi-transparente, igual legenda.
+    x,y = baseline do texto.
+    """
+    h, w = img.shape[:2]
+    (tw, th), base = cv2.getTextSize(text, font, font_scale, thickness)
+
+    x1 = max(0, int(x - pad_x))
+    y1 = max(0, int(y - th - pad_y))
+    x2 = min(w - 1, int(x + tw + pad_x))
+    y2 = min(h - 1, int(y + base + pad_y))
+
+    overlay = img.copy()
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), bg_color, -1)
+    cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
+
+    if border_color is not None:
+        cv2.rectangle(img, (x1, y1), (x2, y2), border_color, 1)
+
+    # sombra leve para leitura
+    cv2.putText(
+        img,
+        text,
+        (x + 1, y + 1),
+        font,
+        font_scale,
+        (0, 0, 0),
+        thickness + 2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        img,
+        text,
+        (x, y),
+        font,
+        font_scale,
+        text_color,
+        thickness,
+        cv2.LINE_AA,
+    )
+
+
 def desenhar_tempo_no_video(f):
     """
     Timer oficial dentro do vídeo.
-    Primeiros 30 segundos de aposta aparecem em vermelho.
+    Fundo preto semi-transparente para leitura fácil.
+    - START IN = janela de aposta, vermelho.
+    - COUNTING = contagem em andamento.
     """
     agora = time.time()
 
     if rodada_em_pausa:
         phase_txt = "NEXT ROUND"
         remaining = max(0, int(round(pausa_ate - agora))) if pausa_ate else 0
-        color = (255, 210, 31)
+        main_color = (255, 210, 31)
         border = (90, 75, 25)
-        bg_hint = (12, 10, 4)
     else:
         elapsed = agora - tempo_rodada_inicio
         phase = _api_phase(elapsed)
@@ -841,50 +900,46 @@ def desenhar_tempo_no_video(f):
 
         if phase == "bet":
             phase_txt = "START IN"
-            color = (0, 0, 255)      # vermelho / bet open
-            border = (0, 0, 180)
-            bg_hint = (18, 4, 4)
+            main_color = (0, 0, 255)      # vermelho
+            border = (0, 0, 190)
         elif phase == "counting":
             phase_txt = "COUNTING"
-            color = (200, 241, 53)
-            border = (80, 120, 35)
-            bg_hint = (4, 12, 4)
+            main_color = (200, 241, 53)   # verde/amarelo
+            border = (80, 150, 70)
         elif phase == "result":
             phase_txt = "RESULT"
-            color = (255, 210, 31)
+            main_color = (255, 210, 31)
             border = (90, 75, 25)
-            bg_hint = (12, 10, 4)
         else:
             phase_txt = "NEXT ROUND"
-            color = (255, 210, 31)
+            main_color = (255, 210, 31)
             border = (90, 75, 25)
-            bg_hint = (12, 10, 4)
 
-    timer_txt = fmt_segundos_video(remaining)
+    timer_txt = f"{remaining // 60:02d}:{remaining % 60:02d}"
 
-    x1 = LARGURA - 230
+    # Caixa no canto superior direito com fundo preto semi-transparente
+    x1 = LARGURA - 250
     y1 = 14
     x2 = LARGURA - 14
-    y2 = 86
+    y2 = 94
 
     overlay = f.copy()
-    cv2.rectangle(overlay, (x1, y1), (x2, y2), bg_hint, -1)
-    cv2.addWeighted(overlay, 0.82, f, 0.18, 0, f)
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.62, f, 0.38, 0, f)
 
     cv2.rectangle(f, (x1, y1), (x2, y2), border, 2)
 
+    label_x = x1 + 16
     if phase_txt == "START IN":
-        cv2.circle(f, (x1 + 14, y1 + 16), 5, (0, 0, 255), -1)
-        label_x = x1 + 26
-    else:
-        label_x = x1 + 12
+        cv2.circle(f, (x1 + 17, y1 + 20), 5, (0, 0, 255), -1)
+        label_x = x1 + 32
 
     cv2.putText(
         f,
         phase_txt,
-        (label_x, y1 + 24),
+        (label_x, y1 + 28),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.45,
+        0.58,
         (235, 235, 235),
         1,
         cv2.LINE_AA,
@@ -893,36 +948,14 @@ def desenhar_tempo_no_video(f):
     cv2.putText(
         f,
         timer_txt,
-        (x1 + 12, y1 + 62),
+        (x1 + 16, y1 + 70),
         cv2.FONT_HERSHEY_DUPLEX,
-        0.98,
-        color,
+        1.08,
+        main_color,
         2,
         cv2.LINE_AA,
     )
 
-
-def desenhar_caixa_texto(f, texto, pos, escala=0.8, cor=(0, 255, 255), espessura=2, pad_x=10, pad_y=7):
-    """
-    Desenha texto com fundo preto semi-transparente para ficar legível no YouTube.
-    """
-    x, y = pos
-    (tw, th), base = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, escala, espessura)
-
-    x1 = max(0, x - pad_x)
-    y1 = max(0, y - th - pad_y)
-    x2 = min(LARGURA - 1, x + tw + pad_x)
-    y2 = min(ALTURA - 1, y + base + pad_y)
-
-    overlay = f.copy()
-    cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.62, f, 0.38, 0, f)
-
-    cv2.rectangle(f, (x1, y1), (x2, y2), (35, 35, 35), 1)
-
-    # Sombra leve
-    cv2.putText(f, texto, (x + 1, y + 1), cv2.FONT_HERSHEY_SIMPLEX, escala, (0, 0, 0), espessura + 2, cv2.LINE_AA)
-    cv2.putText(f, texto, (x, y), cv2.FONT_HERSHEY_SIMPLEX, escala, cor, espessura, cv2.LINE_AA)
 
 
 def desenhar_frame(frame_base):
@@ -940,35 +973,45 @@ def desenhar_frame(frame_base):
     cv2.line(f, (linha["x1"], linha["y1"]), (linha["x2"], linha["y2"]), (0, 0, 0), 6)
     cv2.line(f, (linha["x1"], linha["y1"]), (linha["x2"], linha["y2"]), (0, 255, 255), 3)
 
-    # Contador oficial no vídeo com fundo semi-transparente
+    # Contador oficial no vídeo com fundo preto semi-transparente.
+    # Esse é o ajuste pedido pelo Seif para melhorar leitura.
     label = f"VEHICLES {total_contado}"
-    desenhar_caixa_texto(
+    draw_text_with_translucent_bg(
         f,
         label,
-        (14, ALTURA - 19),
-        escala=0.82,
-        cor=(0, 255, 255),
-        espessura=2,
-        pad_x=10,
+        14,
+        ALTURA - 20,
+        font=cv2.FONT_HERSHEY_SIMPLEX,
+        font_scale=0.86,
+        text_color=(0, 255, 255),
+        thickness=2,
+        bg_color=(0, 0, 0),
+        alpha=0.58,
+        pad_x=12,
         pad_y=8,
+        border_color=(45, 45, 45),
     )
 
-    # Meta/line no vídeo, também com fundo para leitura
+    # Meta/line no vídeo, também com fundo para leitura.
     if meta_rodada_atual:
         meta_txt = f"LINE {meta_rodada_atual}"
-        desenhar_caixa_texto(
+        draw_text_with_translucent_bg(
             f,
             meta_txt,
-            (14, ALTURA - 62),
-            escala=0.58,
-            cor=(255, 210, 31),
-            espessura=1,
-            pad_x=8,
+            14,
+            ALTURA - 64,
+            font=cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale=0.58,
+            text_color=(255, 210, 31),
+            thickness=1,
+            bg_color=(0, 0, 0),
+            alpha=0.55,
+            pad_x=10,
             pad_y=6,
+            border_color=(45, 45, 45),
         )
 
-    # Timer/status oficial dentro do vídeo:
-    # START IN 00:30 durante aposta; COUNTING 01:00 durante contagem.
+    # Timer/status oficial dentro do vídeo.
     desenhar_tempo_no_video(f)
 
     return f
