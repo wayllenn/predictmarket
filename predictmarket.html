@@ -7,6 +7,7 @@
 <title>PredictMarket</title>
 <!-- Telegram WebApp SDK -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -133,8 +134,8 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;background:rad
 .liq-wait-ton{font-size:10px;color:var(--muted);font-weight:700;}
 
 /* BET PANEL */
-.bet-panel{border-top:1px solid var(--border);padding:14px 16px;background:rgba(200,241,53,.015);display:none;}
-.mcard.expanded .bet-panel{display:block;}
+.bet-panel{border-top:1px solid var(--border);padding:14px 16px;background:rgba(200,241,53,.015);display:block;}
+.mcard.expanded .bet-panel{display:block;}/* always visible */
 .bet-title{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
 .vs-row{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
 .vs-opt{flex:1;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s;border:2px solid transparent;}
@@ -215,8 +216,6 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;background:rad
     min-height:420px;
   }
 }
-iframe.yolo-video-media{border:0;}
-
 @media(max-width:480px){
   .yolo-video-wrap{
     aspect-ratio:16 / 9;
@@ -409,40 +408,32 @@ iframe.yolo-video-media{border:0;}
 </div>
 
 <div class="sec-hdr">
-  <span class="sec-title" id="yoloQuestion">🔴 LIVE · How many vehicles will pass in 1m30s?</span>
+  <span class="sec-title" id="yoloQuestion">🔴 LIVE · How many cars will pass in 1m30s?</span>
   <button class="sec-more">View all →</button>
 </div>
 
 <!-- YOLO FEATURED -->
 <!-- VIDEO_PATCH_2026_05_03_HLS_STATIC_NO_FLASK -->
-<div class="feat-card" data-cat="yolo" onclick="toggleFeat(this)">
+<div class="feat-card" data-cat="yolo">
   <!-- Clean video — no overlays -->
   <div class="yolo-video-wrap">
-    <iframe
-      id="yoloVideo"
-      class="yolo-video-media"
-      src="https://www.youtube.com/embed/Z7QjXXO7j1Y?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&live=1&v=20260509014804"
-      title="PredictMarket Live Stream"
-      frameborder="0"
-      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-      allowfullscreen>
-    </iframe>
+    <video id="yoloVideo" class="yolo-video-media" autoplay muted playsinline webkit-playsinline preload="auto"></video>
     <div id="videoOffline" style="position:absolute;inset:0;background:#0a0d14;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:3">
       <div style="font-size:32px">📷</div>
       <div style="font-size:12px;color:var(--muted);font-weight:700">Stream offline</div>
       <div style="font-size:10px;color:var(--muted);text-align:center;padding:0 16px" id="offlineReason"></div>
     </div>
   </div>
-  <!-- Stats below video — sem contador ao vivo fora do vídeo -->
-  <div style="display:flex;align-items:center;padding:7px 14px;border-top:1px solid var(--border);gap:14px">
+  <!-- Stats below video — compact single row -->
+  <div style="display:flex;align-items:center;padding:6px 14px;border-top:1px solid var(--border);gap:14px">
     <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--muted);font-weight:700">Line:</span>
-      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--gold)" id="metaDisplay">--</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:700">Cars:</span>
+      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--accent)" id="carCount">--</span>
     </div>
     <div style="width:1px;height:16px;background:var(--border)"></div>
     <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--muted);font-weight:700">Result:</span>
-      <span style="font-family:JetBrains Mono;font-size:14px;font-weight:800;color:var(--accent)" id="roundResultMini">IN PROGRESS</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:700">Line:</span>
+      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--gold)" id="metaDisplay">--</span>
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:16px;padding:3px 8px">
       <div class="live-dot"></div>
@@ -461,71 +452,25 @@ iframe.yolo-video-media{border:0;}
         <span style="font-size:10px;color:var(--muted)">No data yet...</span>
       </div>
     </div>
-    <div style="background:rgba(200,241,53,.04);border:1px solid rgba(200,241,53,.1);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:11px;color:var(--sub);line-height:1.8">
-      <div style="font-size:9px;font-weight:800;color:var(--accent);letter-spacing:1.5px;margin-bottom:4px">📋 RULES</div>
-      <div>🤖 AI counts vehicles crossing the detection line</div>
-      <div>⏱ Watch the official timer inside the live video</div>
-      <div>🏆 Result = total vehicles in 1m 30s · Win <strong style="color:var(--accent)">1.9×</strong></div>
-      <span class="feat-pool">Pool: <strong>142 TON</strong></span>
-    </div>
-    <!-- QUICK BET COMPLETO — perto do vídeo -->
-    <div id="quickBetTop" style="margin-top:8px;background:rgba(200,241,53,.025);border:1px solid rgba(200,241,53,.12);border-radius:14px;padding:10px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <button
-          id="quickOverBtn"
-          class="yn-btn yes-btn"
-          onclick="event.stopPropagation();selYolo(this,'a');"
-          style="padding:12px 8px;font-size:13px">
-          📈 <span id="quickOverLabel">OVER --</span>
-        </button>
-        <button
-          id="quickUnderBtn"
-          class="yn-btn no-btn"
-          onclick="event.stopPropagation();selYolo(this,'b');"
-          style="padding:12px 8px;font-size:13px">
-          📉 <span id="quickUnderLabel">UNDER --</span>
-        </button>
+    <div style="border:1px solid rgba(200,241,53,.1);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.rules-arrow').textContent=this.nextElementSibling.style.display==='none'?'▸':'▾'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;background:rgba(200,241,53,.04)">
+        <span style="font-size:9px;font-weight:800;color:var(--accent);letter-spacing:1.5px">📋 RULES</span>
+        <span class="rules-arrow" style="color:var(--accent);font-size:10px">▸</span>
       </div>
-
-      <div class="stake-wrap" style="margin-bottom:10px">
-        <div class="stake-top">
-          <span class="stake-label">STAKE AMOUNT</span>
-          <span class="stake-display">💎 <span id="fsDisplay">1.0</span> TON</span>
-        </div>
-
-        <div class="stake-quick">
-          <button class="stake-btn" onclick="event.stopPropagation();quickStake('fs',1)">1</button>
-          <button class="stake-btn" onclick="event.stopPropagation();quickStake('fs',5)">5</button>
-          <button class="stake-btn" onclick="event.stopPropagation();quickStake('fs',10)">10</button>
-          <button class="stake-btn" onclick="event.stopPropagation();quickStake('fs',50)">50</button>
-        </div>
-
-        <div class="stake-custom">
-          <button class="stake-minus" onclick="event.stopPropagation();adjustStake('fs',-1)">−</button>
-          <input class="stake-input" id="fsInput" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('fs')">
-          <span class="stake-ton">TON</span>
-          <button class="stake-plus" onclick="event.stopPropagation();adjustStake('fs',1)">+</button>
-        </div>
+      <div style="display:none;padding:8px 12px;font-size:11px;color:var(--sub);line-height:1.8;background:rgba(200,241,53,.02)">
+        <div>🤖 AI counts cars crossing the detection line</div>
+        <div>⏱ Predict window: <strong style="color:var(--text)">first 30 seconds</strong> of each round</div>
+        <div>🏆 Result = total cars in 1m 30s · Win <strong style="color:var(--accent)">1.9×</strong></div>
+        <span class="feat-pool" style="display:block;margin-top:4px">Pool: <strong>142 TON</strong></span>
       </div>
-
-      <div class="potential">
-        <span class="pot-label">Potential win</span>
-        <span class="pot-val" id="fsPot">1.9 TON</span>
-      </div>
-
-      <button class="confirm-btn" onclick="event.stopPropagation();confirmBet('yolo','fs')">
-        CONFIRM PREDICTION
-      </button>
-    </div>
-
-    <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;background:rgba(200,241,53,.045);border:1px solid rgba(200,241,53,.12);border-radius:10px;padding:8px 12px">
-      <span style="font-size:11px;color:var(--sub);font-weight:700">Round</span>
-      <span style="font-family:JetBrains Mono;font-size:13px;font-weight:800;color:var(--accent)" id="featTimer">IN PROGRESS</span>
-      <span style="display:none" id="betWindow">CHECK STATUS</span>
     </div>
     <div id="betClosedBanner" style="display:none;margin-top:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:8px 14px;text-align:center;font-size:12px;font-weight:700;color:var(--red)">
       🔒 Predictions closed — watching AI count...
     </div>
+    <!-- hidden elements kept for JS compatibility -->
+    <span id="featTimer" style="display:none">01:30</span>
+    <span id="betWindow" style="display:none">00:30</span>
+    <span id="betWindowBox" style="display:none"></span>
   </div>
   <div class="liq">
     <div class="liq-track">
@@ -556,11 +501,37 @@ iframe.yolo-video-media{border:0;}
       </div>
     </div>
   </div>
-  <div class="bet-panel" id="featBet" style="display:none" onclick="event.stopPropagation()">
-    <div class="bet-title">Prediction panel</div>
-    <div style="font-size:11px;color:var(--sub);background:rgba(200,241,53,.04);border:1px solid rgba(200,241,53,.1);border-radius:10px;padding:9px 12px">
-      Use the fixed prediction box above, next to the live video.
+  <div class="bet-panel" id="featBet" style="display:block" onclick="event.stopPropagation()">
+    <div class="bet-title">Make your prediction</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="yn-btn yes-btn" style="text-align:center;padding:10px 8px" onclick="selYolo(this,'a')">
+        <div style="font-size:18px">📈</div><div id="yoloOverBtnLabel" style="font-size:12px;margin-top:3px;font-weight:700">OVER --</div>
+      </div>
+      <div class="yn-btn no-btn" style="text-align:center;padding:10px 8px;position:relative" onclick="selYolo(this,'b')">
+        <div class="match-badge">⚡ INSTANT MATCH</div>
+        <div style="font-size:18px">📉</div><div id="yoloUnderBtnLabel" style="font-size:12px;margin-top:3px;font-weight:700">UNDER --</div>
+      </div>
     </div>
+    <div class="stake-wrap">
+      <div class="stake-top">
+        <span class="stake-label">STAKE AMOUNT</span>
+        <span class="stake-display">💎 <span id="fsDisplay">1.0</span> TON</span>
+      </div>
+      <div class="stake-quick">
+        <button class="stake-btn" onclick="quickStake('fs',1)">1</button>
+        <button class="stake-btn" onclick="quickStake('fs',5)">5</button>
+        <button class="stake-btn" onclick="quickStake('fs',10)">10</button>
+        <button class="stake-btn" onclick="quickStake('fs',50)">50</button>
+      </div>
+      <div class="stake-custom">
+        <button class="stake-minus" onclick="adjustStake('fs',-1)">−</button>
+        <input class="stake-input" id="fsInput" type="number" value="1" min="1" step="1" onclick="event.stopPropagation()" oninput="inputStake('fs')">
+        <span class="stake-ton">TON</span>
+        <button class="stake-plus" onclick="adjustStake('fs',1)">+</button>
+      </div>
+    </div>
+    <div class="potential"><span class="pot-label">Potential win</span><span class="pot-val" id="fsPot">1.9 TON</span></div>
+    <button class="confirm-btn" onclick="confirmBet('yolo','fs')">CONFIRM PREDICTION</button>
   </div>
 </div>
 
@@ -572,7 +543,7 @@ iframe.yolo-video-media{border:0;}
 <div class="cards" id="marketCards">
 
   <!-- POLITICS -->
-  <div class="mcard" data-cat="politics" onclick="toggleCard(this)">
+  <div class="mcard" data-cat="politics">
     <div class="mcard-top">
       <div class="mcard-row1">
         <div class="mcard-emoji" style="background:rgba(239,68,68,.1)">🏛</div>
@@ -660,7 +631,7 @@ iframe.yolo-video-media{border:0;}
   </div>
 
   <!-- FOOTBALL -->
-  <div class="mcard" data-cat="football" onclick="toggleCard(this)">
+  <div class="mcard" data-cat="football">
     <div class="mcard-top">
       <div class="mcard-row1">
         <div class="mcard-emoji" style="background:rgba(34,197,94,.1)">⚽</div>
@@ -741,7 +712,7 @@ iframe.yolo-video-media{border:0;}
   </div>
 
   <!-- CRYPTO -->
-  <div class="mcard" data-cat="crypto" onclick="toggleCard(this)">
+  <div class="mcard" data-cat="crypto">
     <div class="mcard-top">
       <div class="mcard-row1">
         <div class="mcard-emoji" style="background:rgba(245,158,11,.1)">₿</div>
@@ -822,7 +793,7 @@ iframe.yolo-video-media{border:0;}
   </div>
 
   <!-- ENTERTAINMENT -->
-  <div class="mcard" data-cat="entertainment" onclick="toggleCard(this)">
+  <div class="mcard" data-cat="entertainment">
     <div class="mcard-top">
       <div class="mcard-row1">
         <div class="mcard-emoji" style="background:rgba(168,85,247,.1)">🎬</div>
@@ -934,48 +905,6 @@ const markets = {
   ent:  {a:1491,  b:609},
 };
 const selectedSide = {};
-
-function updateQuickBetLabels(data){
-  const line = data?.line?.value;
-  const overMin = data?.line?.over_min;
-  const underMax = data?.line?.under_max;
-
-  const overLabel = document.getElementById('quickOverLabel');
-  const underLabel = document.getElementById('quickUnderLabel');
-
-  const overText = overMin ? `OVER ${overMin}+` : (line ? `OVER ${line + 1}+` : 'OVER --');
-  const underText = underMax !== null && underMax !== undefined ? `UNDER ≤ ${underMax}` : (line ? `UNDER ≤ ${line}` : 'UNDER --');
-
-  if(overLabel) overLabel.textContent = overText;
-  if(underLabel) underLabel.textContent = underText;
-}
-
-
-function updateMiniRoundResult(data){
-  const el = document.getElementById('roundResultMini');
-  if(!el) return;
-
-  const phase = data?.phase || '';
-  const result = data?.result || null;
-
-  if(result && (phase === 'result' || phase === 'pause')){
-    const winner = result.winner || '--';
-    const count = result.count ?? '--';
-    const line = result.line ?? '--';
-    el.textContent = `${winner} · ${count}/${line}`;
-    el.style.color = winner === 'OVER' ? 'var(--green)' : 'var(--red)';
-  } else if(phase === 'bet'){
-    el.textContent = 'PREDICTING';
-    el.style.color = 'var(--gold)';
-  } else if(phase === 'counting'){
-    el.textContent = 'COUNTING';
-    el.style.color = 'var(--accent)';
-  } else {
-    el.textContent = 'IN PROGRESS';
-    el.style.color = 'var(--accent)';
-  }
-}
-
 const stakeMap = {fs:'fs',p1:'p1',f1:'f1',c1:'c1',e1:'e1'};
 
 function getPct(a,b){return [Math.round(a/(a+b)*100), Math.round(b/(a+b)*100)];}
@@ -1035,33 +964,21 @@ function setTab(el,cat){
   document.getElementById('activeMarketsCount').textContent=count;
 }
 
-function toggleCard(card){
-  const wasExp=card.classList.contains('expanded');
-  document.querySelectorAll('.mcard').forEach(c=>{c.classList.remove('expanded');const bp=c.querySelector('.bet-panel');if(bp)bp.style.display='none';});
-  if(!wasExp){card.classList.add('expanded');const bp=card.querySelector('.bet-panel');if(bp)bp.style.display='block';}
-  event.stopPropagation();
-}
-function toggleFeat(card){
-  const bp=document.getElementById('featBet');
-  bp.style.display=bp.style.display==='block'?'none':'block';
-  event.stopPropagation();
-}
+function toggleCard(card){ event.stopPropagation(); }
+function toggleFeat(card){ event.stopPropagation(); }
 
 function selYN(btn,side,mkt){event.stopPropagation();const row=btn.closest('.yn-row');row.querySelectorAll('.yn-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');selectedSide[mkt]=side;}
 function selVs(opt,side,mkt){event.stopPropagation();const row=opt.closest('.vs-row');row.querySelectorAll('.vs-opt').forEach(o=>o.classList.remove('sel'));opt.classList.add('sel');selectedSide[mkt]=side;}
-function selYolo(btn,side){
-  event.stopPropagation();
-  selectedSide.yolo=side;
+function selYolo(btn,side){event.stopPropagation();const grid=btn.closest('[style*="grid"]');grid.querySelectorAll('.yn-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');selectedSide['yolo']=side;}
 
-  document.querySelectorAll('#quickBetTop .yn-btn, #featBet .yn-btn').forEach(b=>b.classList.remove('sel'));
-  if(btn) btn.classList.add('sel');
-
-  const overBtn=document.getElementById('quickOverBtn');
-  const underBtn=document.getElementById('quickUnderBtn');
-  if(side==='a' && overBtn) overBtn.classList.add('sel');
-  if(side==='b' && underBtn) underBtn.classList.add('sel');
-
-  haptic();
+// Stake functions
+function getStakeVal(prefix){return parseFloat(document.getElementById(prefix+'Input')?.value||1);}
+function updatePot(prefix){
+  const v=getStakeVal(prefix);
+  const disp=document.getElementById(prefix+'Display');
+  const pot=document.getElementById(prefix+'Pot');
+  if(disp)disp.textContent=v.toFixed(1);
+  if(pot)pot.textContent=(v*1.9).toFixed(2)+' TON';
 }
 function quickStake(prefix,val){
   event.stopPropagation();
@@ -1264,7 +1181,7 @@ setInterval(()=>{
 Object.keys(markets).forEach(m=>updateLiq(m));
 
 // ── MASSPIKE API ──
-const API = window.API_BASE || window.location.origin;  // API normal do pod/Cloudflare: /status.json
+const API = '';  // static mode: Nginx/python http.server serves /hls and /status.json
 let lastPhase = '';
 let frameErrors = 0;
 let currentYoloLine = null;
@@ -1277,7 +1194,7 @@ function setText(id, text){
 function buildYoloLabels(lineValue){
   if(lineValue === null || lineValue === undefined || lineValue === '--'){
     return {
-      question: '🔴 LIVE · How many vehicles will pass in 1m30s?',
+      question: '🔴 LIVE · How many cars will pass in 1m30s?',
       over: 'OVER --',
       under: 'UNDER --',
       overBook: '📈 OVER --',
@@ -1288,12 +1205,12 @@ function buildYoloLabels(lineValue){
   const line = Number(lineValue);
   const overMin = line + 1;
   return {
-    question: `🚗 Will more than ${line} vehicles pass in the next 1m30s?`,
+    question: `🚗 Will more than ${line} cars pass in the next 1m30s?`,
     over: `OVER ${overMin}+`,
     under: `UNDER ≤ ${line}`,
     overBook: `📈 OVER ${overMin}+`,
     underBook: `UNDER ≤ ${line} 📉`,
-    wait: `UNDER wins at ${line} or less. OVER needs ${overMin}+ vehicles.`
+    wait: `UNDER wins at ${line} or less. OVER needs ${overMin}+ cars.`
   };
 }
 
@@ -1327,40 +1244,29 @@ async function pollYolo(){
     const betBox = document.getElementById('betWindowBox');
     const featBet= document.getElementById('featBet');
 
-    // IMPORTANT:
-    // YouTube has variable delay, so exact countdown in HTML can look out of sync.
-    // The reliable countdown is now burned into the video itself.
     if(phase === 'bet'){
       betOpen = true;
-      if(betEl){ betEl.textContent='OPEN'; betEl.style.color='var(--green)';}
-      if(featEl){ featEl.textContent='PREDICTING'; featEl.style.color='var(--gold)';}
+      if(betEl){ betEl.textContent=fmtTime(endsIn); betEl.style.color=endsIn<=10?'var(--red)':endsIn<=20?'var(--gold)':'var(--green)';}
       if(banner) banner.style.display='none';
-    } else if(phase === 'counting'){
-      betOpen = false;
-      if(betEl){ betEl.textContent='CLOSED'; betEl.style.color='var(--red)';}
-      if(featEl){ featEl.textContent='IN PROGRESS'; featEl.style.color='var(--accent)';}
-      if(banner) banner.style.display='block';
-      if(featBet) featBet.style.display='none';
-    } else if(phase === 'result' || phase === 'pause'){
-      betOpen = false;
-      if(betEl){ betEl.textContent='CLOSED'; betEl.style.color='var(--red)';}
-      if(featEl){ featEl.textContent='FINALIZING'; featEl.style.color='var(--gold)';}
-      if(banner) banner.style.display='none';
-      if(featBet) featBet.style.display='none';
     } else {
       betOpen = false;
       if(betEl){ betEl.textContent='CLOSED'; betEl.style.color='var(--red)';}
-      if(featEl){ featEl.textContent='IN PROGRESS'; featEl.style.color='var(--accent)';}
+      if(banner) banner.style.display='block';
+      // featBet always visible
+    }
+
+    if(featEl){
+      if(phase==='counting') featEl.textContent=fmtTime(endsIn);
+      else if(phase==='bet') featEl.textContent=fmtTime(60);
     }
 
     // Adaptive line / market labels
-    const lineValue = d.line?.value ?? d.result?.line ?? null;
+    const lineValue = d.line?.value ?? null;
     const lineEl=document.getElementById('yoloLine');
     if(lineEl && d.line?.label) lineEl.textContent=d.line.label;
     const metaEl=document.getElementById('metaDisplay');
-    if(metaEl) metaEl.textContent=(lineValue !== null && lineValue !== undefined) ? lineValue : '--';
+    if(metaEl) metaEl.textContent=lineValue ?? '--';
     updateYoloMarketLabels(lineValue, d);
-    if(typeof updateQuickBetLabels === 'function') updateQuickBetLabels(d);
 
     // Result
     if((phase==='result'||phase==='pause') && d.result) showYoloResult(d.result);
@@ -1399,8 +1305,8 @@ function showYoloResult(result){
   box.style.background=won?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)';
   box.style.border=won?'1px solid rgba(34,197,94,.3)':'1px solid rgba(239,68,68,.3)';
   box.style.color=won?'var(--green)':'var(--red)';
-  const ruleTxt = result.winner==='OVER' ? `passed the line by ${Math.max(0, result.count-result.line)} vehicle(s)` : `did not pass the line`;
-  box.innerHTML=`${won?'🏆':'❌'} ${result.winner} — ${result.count} vehicles / line ${result.line} (${ruleTxt})`;
+  const ruleTxt = result.winner==='OVER' ? `passed the line by ${Math.max(0, result.count-result.line)} car(s)` : `did not pass the line`;
+  box.innerHTML=`${won?'🏆':'❌'} ${result.winner} — ${result.count} cars / line ${result.line} (${ruleTxt})`;
 }
 
 function resolveYoloBet(winner){
@@ -1421,26 +1327,16 @@ function resolveYoloBet(winner){
 function updateHistory(history){
   const box=document.getElementById('yoloHistory');
   if(!box) return;
-
-  if(!history || !history.length){
-    box.innerHTML='<span style="font-size:10px;color:var(--muted)">No data yet...</span>';
+  if(!history||!history.length){
+    box.innerHTML='<span style="font-size:10px;color:var(--muted)">–</span>';
     return;
   }
-
   box.innerHTML=history.slice(-5).reverse().map(h=>{
     const isOver=h.winner==='OVER';
     const color=isOver?'var(--green)':'var(--red)';
     const bg=isOver?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)';
     const border=isOver?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)';
-    const icon=isOver?'📈':'📉';
-    const line = (h.line !== null && h.line !== undefined) ? h.line : '--';
-    const count = (h.count !== null && h.count !== undefined) ? h.count : '--';
-    return `
-      <div style="display:flex;align-items:center;gap:5px;background:${bg};border:1px solid ${border};border-radius:999px;padding:5px 8px;color:${color};font-family:'JetBrains Mono';font-size:10px;font-weight:800">
-        <span>${icon}</span>
-        <span>${h.winner}</span>
-        <span>${count}/${line}</span>
-      </div>`;
+    return `<div title="${h.winner} — Round ${h.round||''}" style="width:30px;height:30px;border-radius:50%;background:${bg};border:1.5px solid ${border};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:${color}">${isOver?'↑':'↓'}</div>`;
   }).join('');
 }
 
@@ -1498,22 +1394,62 @@ async function loadYoloLine(){
 }
 
 // Local processed video from masspike.py — clean MJPEG stream with only line + count
-// YouTube relay video.
-// Fluxo: RunPod gera/processa -> YouTube entrega o vídeo -> HTML mostra o player.
-// A API continua vindo normal do pod em API + /status.json.
+// HLS video generated by masspike_hls_static_no_flask.py and served as static files.
 function initVideo(){
+  const video = document.getElementById('yoloVideo');
   const offline = document.getElementById('videoOffline');
-  if(offline) offline.style.display = 'none';
+  const reason = document.getElementById('offlineReason');
+  if(!video) return;
+
+  const src = API + '/hls/stream.m3u8';
+
+  function showOffline(msg){
+    if(offline) offline.style.display = 'flex';
+    if(reason) reason.textContent = msg || 'Aguardando HLS /hls/stream.m3u8.';
+  }
+  function hideOffline(){
+    if(offline) offline.style.display = 'none';
+  }
+
+  video.addEventListener('playing', hideOffline);
+  video.addEventListener('error', () => showOffline('Stream HLS ainda não está pronto.'));
+
+  if(window.Hls && Hls.isSupported()){
+    const hls = new Hls({
+      liveSyncDuration: 2,
+      liveMaxLatencyDuration: 6,
+      lowLatencyMode: false,
+      backBufferLength: 10,
+      maxBufferLength: 8
+    });
+    hls.loadSource(src);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play().catch(()=>{});
+    });
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if(data && data.fatal){
+        showOffline('Reconectando HLS...');
+        try { hls.destroy(); } catch(e) {}
+        setTimeout(initVideo, 2500);
+      }
+    });
+  } else if(video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src = src;
+    video.addEventListener('loadedmetadata', () => video.play().catch(()=>{}));
+  } else {
+    showOffline('Este navegador não suporta HLS.');
+  }
 }
 
 // Start everything
 // Atualização rápida do card: o vídeo processado já contém linha/pontos/contador;
-// este polling só mantém o número Vehicles/Line abaixo do vídeo acompanhando o stream.
+// este polling só mantém o número Cars/Line abaixo do vídeo acompanhando o stream.
 window.addEventListener('load', ()=>{
   initVideo();
   pollYolo();
 
-  const STATUS_POLL_MS = 100; // teste local: atualiza Vehicles/Line a cada 100ms
+  const STATUS_POLL_MS = 100; // teste local: atualiza Cars/Line a cada 100ms
   setInterval(pollYolo, STATUS_POLL_MS);
 });
 
