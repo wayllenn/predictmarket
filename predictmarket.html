@@ -408,7 +408,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;background:rad
 </div>
 
 <div class="sec-hdr">
-  <span class="sec-title" id="yoloQuestion">🔴 LIVE · How many cars will pass in 1m30s?</span>
+  <span class="sec-title" id="yoloQuestion">🔴 LIVE · 🎯 Calculating target...</span>
   <button class="sec-more">View all →</button>
 </div>
 
@@ -427,12 +427,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;background:rad
   <!-- Stats below video — compact single row -->
   <div style="display:flex;align-items:center;padding:6px 14px;border-top:1px solid var(--border);gap:14px">
     <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--muted);font-weight:700">Cars:</span>
-      <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--accent)" id="carCount">--</span>
-    </div>
-    <div style="width:1px;height:16px;background:var(--border)"></div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--muted);font-weight:700">Line:</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:700">🎯 Target:</span>
       <span style="font-family:JetBrains Mono;font-size:16px;font-weight:700;color:var(--gold)" id="metaDisplay">--</span>
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:16px;padding:3px 8px">
@@ -1194,23 +1189,23 @@ function setText(id, text){
 function buildYoloLabels(lineValue){
   if(lineValue === null || lineValue === undefined || lineValue === '--'){
     return {
-      question: '🔴 LIVE · How many cars will pass in 1m30s?',
+      question: '🔴 LIVE · 🎯 Calculating target...',
       over: 'OVER --',
       under: 'UNDER --',
       overBook: '📈 OVER --',
       underBook: 'UNDER -- 📉',
-      wait: 'Waiting for adaptive line...'
+      wait: '🎯 Calculating target...'
     };
   }
   const line = Number(lineValue);
   const overMin = line + 1;
   return {
-    question: `🚗 Will more than ${line} cars pass in the next 1m30s?`,
+    question: `🔴 LIVE · 🎯 Target: ${line} cars in 1m30s`,
     over: `OVER ${overMin}+`,
     under: `UNDER ≤ ${line}`,
     overBook: `📈 OVER ${overMin}+`,
     underBook: `UNDER ≤ ${line} 📉`,
-    wait: `UNDER wins at ${line} or less. OVER needs ${overMin}+ cars.`
+    wait: `🎯 Target: ${line} — OVER needs ${overMin}+ · UNDER needs ≤ ${line}`
   };
 }
 
@@ -1263,7 +1258,7 @@ async function pollYolo(){
     // Adaptive line / market labels
     const lineValue = d.line?.value ?? null;
     const lineEl=document.getElementById('yoloLine');
-    if(lineEl && d.line?.label) lineEl.textContent=d.line.label;
+    if(lineEl && d.line?.label) lineEl.textContent=d.line.label.replace(/^Line /,'Target ');
     const metaEl=document.getElementById('metaDisplay');
     if(metaEl) metaEl.textContent=lineValue ?? '--';
     updateYoloMarketLabels(lineValue, d);
